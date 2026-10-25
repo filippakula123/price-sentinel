@@ -4,7 +4,7 @@
 2. SQLite, obserwacje, trwała kolejka alertów i jednorazowy CLI.
 3. Historia, eksport, porównania, wykresy, raporty.
 4. Opcjonalny proces Discord ze wspólnymi usługami i autoryzacją.
-5. CI i jawnie włączana publiczna persistencja Actions.
+5. CI i jawnie włączana publiczna persistencja Actions; monitoring tylko ręczny, bez cron.
 6. Testy offline, lint, próby odczytu rzeczywistych sklepów i uczciwa dokumentacja.
 
 Repo początkowo zawierało tylko README. Nie ma danych do migracji.

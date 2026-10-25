@@ -48,8 +48,18 @@ def public_ip(host: str) -> str:
 
 
 class SafeHTTP:
-    def __init__(self, hosts: frozenset[str], *, interval: float = 3, max_bytes: int = 4_000_000):
+    def __init__(
+        self,
+        hosts: frozenset[str],
+        *,
+        interval: float = 3,
+        max_bytes: int = 4_000_000,
+        attempts: int = 3,
+    ):
+        if not 1 <= attempts <= 3:
+            raise ValueError("Dozwolone od 1 do 3 prób HTTP")
         self.hosts = hosts
+        self.attempts = attempts
         self.interval = interval
         self.max_bytes = max_bytes
         self.last: dict[str, float] = {}
@@ -65,7 +75,13 @@ class SafeHTTP:
                 with client.stream(
                     "GET",
                     pinned,
-                    headers={"Host": host, "User-Agent": "PriceSentinel/0.1"},
+                    headers={
+                        "Host": host,
+                        "User-Agent": "PriceSentinel/0.1",
+                        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,"
+                        "text/plain;q=0.8,*/*;q=0.5",
+                        "Accept-Language": "pl-PL,pl;q=0.9,en;q=0.5",
+                    },
                     extensions={"sni_hostname": host},
                 ) as response:
                     chunks = bytearray()
@@ -100,7 +116,7 @@ class SafeHTTP:
                 delay = parser.crawl_delay("PriceSentinel") or parser.crawl_delay("*") or 0
             else:
                 delay = 0
-            for attempt in range(3):
+            for attempt in range(self.attempts):
                 time.sleep(
                     max(0, max(self.interval, delay) - (time.monotonic() - self.last.get(host, 0)))
                 )
@@ -108,11 +124,11 @@ class SafeHTTP:
                 try:
                     status, headers, body = self._request(url, host)
                 except ReadError as exc:
-                    if exc.status != "błąd_sieci" or attempt == 2:
+                    if exc.status != "błąd_sieci" or attempt == self.attempts - 1:
                         raise
                     time.sleep(2**attempt)
                     continue
-                if status in (429, 500, 502, 503, 504) and attempt < 2:
+                if status in (429, 500, 502, 503, 504) and attempt < self.attempts - 1:
                     retry = headers.get("retry-after", "0")
                     wait = int(retry) if retry.isdigit() else 0
                     if wait > 60:

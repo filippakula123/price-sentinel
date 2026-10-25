@@ -13,6 +13,7 @@ class Adapter(Protocol):
     host: str
     verified: bool
     verification_scope: str
+    support_status: str
 
     def parse(self, html: str) -> tuple[Product, Observation]: ...
 
@@ -29,6 +30,7 @@ def nodes(value):
 
 class StructuredAdapter:
     verified = False
+    support_status = "unverified"
     verification_scope = "Niezweryfikowany na rzeczywistym produkcie; tylko testy syntetyczne"
 
     def parse(self, html: str) -> tuple[Product, Observation]:
@@ -93,15 +95,20 @@ class StructuredAdapter:
 
 class MediaExpertAdapter(StructuredAdapter):
     host = "www.mediaexpert.pl"
+    support_status = "blocked"
+    verification_scope = "2026-10-25: robots dostępny; kategoria i rzeczywista karta HTTP 403"
 
 
 class EuroAdapter(StructuredAdapter):
     host = "www.euro.com.pl"
+    support_status = "blocked"
+    verification_scope = "2026-10-25: robots i sitemap dostępne; kategoria/karta HTTP 403"
 
 
 class XKomAdapter(StructuredAdapter):
     host = "www.x-kom.pl"
     verified = True  # Cena jednego produktu; zakres: docs/VERIFICATION.md.
+    support_status = "partial"
     verification_scope = "Cena JSON-LD karty 1195326 (2026-10-25); dostępność nieznana"
 
 

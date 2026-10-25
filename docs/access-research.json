@@ -1,0 +1,83 @@
+[
+  {
+    "host": "www.mediaexpert.pl",
+    "at": "2026-10-25T19:39:18.001421+00:00",
+    "source": "robots.txt",
+    "status": "ok",
+    "sha256": "cfa4ed1016b87ee51a7b3f3026f916570d25012f63c0bd6100a56b9d85d90f11",
+    "sitemaps": []
+  },
+  {
+    "host": "www.mediaexpert.pl",
+    "url": "https://www.mediaexpert.pl/gaming/playstation-5/konsole-ps5",
+    "at": "2026-10-25T19:39:18.001421+00:00",
+    "status": "http_403"
+  },
+  {
+    "host": "www.euro.com.pl",
+    "at": "2026-10-25T19:39:24.398294+00:00",
+    "source": "robots.txt",
+    "status": "ok",
+    "sha256": "b9335e2d5cf91089bfe57ddc06207507f84bc2c8bffecad87bb9b811af642f41",
+    "sitemaps": [
+      "https://www.euro.com.pl/sitemap-index.xml"
+    ]
+  },
+  {
+    "host": "www.euro.com.pl",
+    "url": "https://www.euro.com.pl/konsole-playstation-5.bhtml",
+    "at": "2026-10-25T19:39:24.398294+00:00",
+    "status": "http_403"
+  },
+  {
+    "host": "www.euro.com.pl",
+    "url": "https://www.euro.com.pl/sitemap-index.xml",
+    "at": "2026-10-25T19:39:30.467361+00:00",
+    "status": "ok",
+    "bytes": 40121,
+    "sha256": "7ddf88a962c694d9aeff633831d4b2af604ba7705e8067b7e7f9c1067f05e2d5",
+    "locations_sample": [
+      "https://www.euro.com.pl/sitemap-kategorie.xml",
+      "https://www.euro.com.pl/sitemap-cms.xml",
+      "https://www.euro.com.pl/sitemap-definicje.xml"
+    ]
+  },
+  {
+    "at": "2026-10-25T19:39:56.905935+00:00",
+    "url": "https://www.mediaexpert.pl/gaming/playstation-5/konsole-ps5/konsola-sony-playstation-5-slim-e-chassis-minecraft-gra-ps5",
+    "host": "www.mediaexpert.pl",
+    "status": "blocked",
+    "adapter_status": "blocked",
+    "detail": "http_403",
+    "obserwacja_utworzona": false,
+    "max_prób_na_url": 1,
+    "adapter": "MediaExpertAdapter",
+    "zweryfikowany_zakres": "Niezweryfikowany na rzeczywistym produkcie; tylko testy syntetyczne"
+  },
+  {
+    "at": "2026-10-25T19:40:10.776130+00:00",
+    "url": "https://www.euro.com.pl/konsole-playstation-5/sony-playstation-5-digital-slim-e-chassis-ps5-825gb-adex.bhtml",
+    "host": "www.euro.com.pl",
+    "status": "blocked",
+    "adapter_status": "blocked",
+    "detail": "http_403",
+    "obserwacja_utworzona": false,
+    "max_prób_na_url": 1,
+    "adapter": "EuroAdapter",
+    "zweryfikowany_zakres": "Niezweryfikowany na rzeczywistym produkcie; tylko testy syntetyczne"
+  },
+  {
+    "at": "2026-10-25T19:40:14.685239+00:00",
+    "url": "https://www.x-kom.pl/p/1195326-konsola-playstation-sony-playstation-5-slim.html",
+    "host": "www.x-kom.pl",
+    "status": "ok",
+    "adapter_status": "partial",
+    "detail": "jednoznaczny_Product_Offer_PLN",
+    "obserwacja_utworzona": false,
+    "max_prób_na_url": 1,
+    "adapter": "XKomAdapter",
+    "zweryfikowany_zakres": "Cena JSON-LD karty 1195326 (2026-10-25); dostępność nieznana",
+    "dostępność": "nieznany",
+    "identyfikator_obecny": true
+  }
+]

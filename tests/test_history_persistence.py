@@ -6,6 +6,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
+from price_sentinel.alerts import deliver
 from price_sentinel.cli import execute, parser
 from price_sentinel.config import Settings
 from price_sentinel.discord_bot import authorized
@@ -28,6 +29,49 @@ def test_snapshot_roundtrip_including_alert_state(monitor, db, tmp_path):
         assert target.export_snapshot()["tables"] == db.export_snapshot()["tables"]
         assert target.rows("SELECT * FROM alerts")[0]["state"] == "pending"
         assert target.offer(oid)["paused"] == 1
+    finally:
+        target.close()
+
+
+def test_snapshot_cli_integration_repeat_restore_keeps_observations_and_alerts(
+    monitor, db, tmp_path
+):
+    webhook = "https://discord.com/api/webhooks/123/synthetic_secret"
+    first = monitor.add(URL, Subscription(target=200000, cooldown=0))
+    monitor.check(first)
+    deliver(db, webhook, lambda *args: None)
+    second = monitor.add(URL + "-pending", Subscription(target=200000))
+    monitor.check(second)
+    third = monitor.add(URL + "-failed", Subscription(target=200000))
+    monitor.check(third)
+    with db.conn:
+        db.conn.execute("UPDATE alerts SET state='failed',attempts=5 WHERE offer_id=?", (third,))
+    snapshot = tmp_path / "snapshot.json"
+    execute(parser().parse_args(["snapshot", str(snapshot)]), db, monitor.settings)
+    expected = db.export_snapshot()["tables"]
+    assert len(expected["observations"]) == 3
+    assert {a["state"] for a in expected["alerts"]} == {"sent", "pending", "failed"}
+    restored_path = tmp_path / "restored.sqlite3"
+    target = Database(restored_path)
+    try:
+        args = parser().parse_args(["restore", str(snapshot)])
+        execute(args, target, monitor.settings)
+        execute(args, target, monitor.settings)
+        assert target.export_snapshot()["tables"] == expected
+        assert len(target.rows("SELECT * FROM observations")) == 3
+    finally:
+        target.close()
+    # Restart procesu/bazy nie otwiera ponownie wysłanych ani failed alertów.
+    target = Database(restored_path)
+    sent = []
+    try:
+        assert target.export_snapshot()["tables"] == expected
+        assert target.snapshot_status()["status"] == "restored"
+        assert deliver(target, webhook, lambda url, text: sent.append(text))["wysłane"] == 1
+        assert URL + "-pending" in sent[0]
+        assert deliver(target, webhook, lambda *args: pytest.fail("Duplikat"))["wysłane"] == 0
+        assert len(target.rows("SELECT * FROM observations")) == 3
+        assert len(target.rows("SELECT * FROM alerts WHERE state='failed'")) == 1
     finally:
         target.close()
 

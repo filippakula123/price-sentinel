@@ -5,6 +5,7 @@ from pydantic import ValidationError
 
 from .adapters import ADAPTERS
 from .alerts import enqueue
+from .diagnostics import read_status
 from .models import Observation, Product, Subscription, now
 from .transport import ReadError, SafeHTTP, validate_url
 
@@ -126,22 +127,79 @@ class Monitor:
 
     def status(self):
         offers = self.db.rows("SELECT id,url,paused,status,last_success,product_id FROM offers")
-        return {
-            "oferty": offers,
-            "adaptery": [
+        counts = {
+            table: self.db.rows(f"SELECT count(*) AS n FROM {table}")[0]["n"]
+            for table in ("products", "offers")
+        }
+        failures = {}
+        latest_checks = {}
+        for row in self.db.conn.execute(
+            "SELECT f.url,c.at,c.status FROM checks c JOIN offers f ON f.id=c.offer_id "
+            "ORDER BY c.at DESC,c.id DESC"
+        ):
+            host = urlsplit(row["url"]).hostname
+            if host not in latest_checks:
+                latest_checks[host] = {"at": row["at"], "detail": row["status"]}
+            if row["status"] != "ok" and host not in failures:
+                failures[host] = {"at": row["at"], "detail": row["status"], "źródło": "monitoring"}
+            if set(ADAPTERS) <= failures.keys():
+                break
+        adapters = []
+        for host, adapter in ADAPTERS.items():
+            diagnostic = self.db.metadata("diagnostic:" + host)
+            success = self.db.metadata("diagnostic_success:" + host)
+            failure = self.db.metadata("diagnostic_error:" + host)
+            if diagnostic:
+                if success is None and diagnostic["status"] == "ok":
+                    success = diagnostic
+                if failure is None and diagnostic["status"] != "ok":
+                    failure = diagnostic
+            errors = [value for value in (failures.get(host), failure) if value]
+            last_success = max(
+                (
+                    o["last_success"]
+                    for o in offers
+                    if urlsplit(o["url"]).hostname == host and o["last_success"]
+                ),
+                default=None,
+            )
+            support = adapter.support_status
+            events = [value for value in (latest_checks.get(host), diagnostic) if value]
+            if events:
+                latest = max(events, key=lambda value: value["at"])
+                if latest is diagnostic:
+                    support = diagnostic["adapter_status"]
+                else:
+                    support = (
+                        ("partial" if adapter.verified else "unverified")
+                        if (latest["detail"] == "ok")
+                        else read_status(latest["detail"])
+                    )
+            adapters.append(
                 {
                     "host": host,
+                    "status": support,
                     "zweryfikowany": adapter.verified,
                     "zakres_weryfikacji": adapter.verification_scope,
+                    "ostatni_sukces_monitoringu": last_success,
                     "ostatni_sukces": max(
-                        (
-                            o["last_success"]
-                            for o in offers
-                            if urlsplit(o["url"]).hostname == host and o["last_success"]
-                        ),
+                        filter(None, [last_success, success["at"] if success else None]),
                         default=None,
                     ),
+                    "ostatni_błąd": max(errors, key=lambda value: value["at"]) if errors else None,
+                    "ostatnia_diagnostyka": diagnostic,
                 }
-                for host, adapter in ADAPTERS.items()
-            ],
+            )
+        return {
+            "liczba_produktów": counts["products"],
+            "liczba_ofert": counts["offers"],
+            "oczekujące_webhooki": self.db.rows(
+                "SELECT count(*) AS n FROM alerts WHERE state='pending'"
+            )[0]["n"],
+            "nieudane_webhooki": self.db.rows(
+                "SELECT count(*) AS n FROM alerts WHERE state='failed'"
+            )[0]["n"],
+            "snapshot": self.db.snapshot_status(),
+            "oferty": offers,
+            "adaptery": adapters,
         }

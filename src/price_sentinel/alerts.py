@@ -1,5 +1,6 @@
 import hashlib
 import json
+import logging
 import re
 from datetime import UTC, datetime, timedelta
 from urllib.parse import urlsplit
@@ -8,6 +9,20 @@ import httpx
 
 from .models import Availability, Observation, Subscription, now
 from .transport import ReadError
+
+
+class WebhookLogFilter(logging.Filter):
+    def filter(self, record):
+        record.msg = re.sub(
+            r"https://discord\.com(?::443)?/api/webhooks/[^\s\"'<>]+",
+            "https://discord.com/api/webhooks/***",
+            record.getMessage(),
+        )
+        record.args = ()
+        return True
+
+
+_WEBHOOK_LOG_FILTER = WebhookLogFilter()
 
 
 def pln(cents: int) -> str:
@@ -96,6 +111,14 @@ def validate_webhook(url: str):
 
 def send_webhook(url: str, content: str):
     validate_webhook(url)
+    for name in (
+        "httpx",
+        "httpcore.http11",
+        "httpcore.http2",
+        "httpcore.connection",
+        "httpcore.proxy",
+    ):
+        logging.getLogger(name).addFilter(_WEBHOOK_LOG_FILTER)
     try:
         with httpx.Client(timeout=15, follow_redirects=False, trust_env=False) as client:
             response = client.post(
@@ -103,8 +126,16 @@ def send_webhook(url: str, content: str):
             )
         if response.status_code not in (200, 204):
             raise ReadError(f"discord_http_{response.status_code}")
-    except httpx.HTTPError as exc:
-        raise ReadError("discord_błąd_sieci") from exc
+    except httpx.HTTPError:
+        raise ReadError("discord_błąd_sieci") from None
+
+
+def test_webhook(webhook: str | None) -> dict:
+    """Dokładnie jedna próba POST; bez kolejki alertów i automatycznego retry."""
+    if not webhook:
+        raise ValueError("Ustaw DISCORD_WEBHOOK_URL")
+    send_webhook(webhook, f"Price Sentinel — test połączenia webhooka. Czas UTC: {now()}")
+    return {"status": "ok", "wysłane": 1, "webhook": "https://discord.com/api/webhooks/***"}
 
 
 def deliver(db, webhook: str | None, sender=send_webhook) -> dict:

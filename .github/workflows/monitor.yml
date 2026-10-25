@@ -1,8 +1,12 @@
-name: Public price monitor (opt-in)
+name: Manual price monitor (opt-in)
 on:
-  schedule:
-    - cron: '17 */6 * * *'
   workflow_dispatch:
+    inputs:
+      notify:
+        description: Send Discord alerts and reports (requires configured webhook)
+        type: boolean
+        required: true
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -46,6 +50,7 @@ jobs:
           python scripts/persist_state.py snapshot-state
       - name: Send alerts and due reports
         id: notify
+        if: inputs.notify
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |

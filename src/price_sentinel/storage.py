@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 import sqlite3
@@ -35,6 +36,7 @@ TABLES = ("products", "offers", "subscriptions", "observations", "checks", "aler
 
 class Database:
     def __init__(self, path: Path):
+        self.path = path
         path.parent.mkdir(parents=True, exist_ok=True)
         # Bot serializuje wszystkie operacje blokadą asyncio, także w workerze HTTP.
         self.conn = sqlite3.connect(path, timeout=30, check_same_thread=False)
@@ -76,9 +78,62 @@ class Database:
             "tables": {table: self.rows(f"SELECT * FROM {table}") for table in TABLES},
         }
 
-    def restore(self, snapshot: dict):
-        if snapshot.get("schema_version") != 1 or set(snapshot["tables"]) != set(TABLES):
+    def domain_digest(self) -> str:
+        body = json.dumps(
+            self.export_snapshot()["tables"],
+            sort_keys=True,
+            ensure_ascii=False,
+            separators=(",", ":"),
+        )
+        return hashlib.sha256(body.encode()).hexdigest()
+
+    def metadata(self, key: str):
+        rows = self.rows("SELECT value FROM metadata WHERE key=?", (key,))
+        return json.loads(rows[0]["value"]) if rows else None
+
+    def set_metadata(self, key: str, value):
+        self.conn.execute("INSERT OR REPLACE INTO metadata VALUES (?,?)", (key, json.dumps(value)))
+
+    def snapshot_status(self):
+        saved = self.metadata("snapshot:export")
+        result = {
+            "status": "not_created",
+            "eksport": saved,
+            "odtworzenie": self.metadata("snapshot:restore"),
+            "zapis_zdalny": "not_verified",
+        }
+        if not saved:
+            if result["odtworzenie"]:
+                result["status"] = "restored"
+            return result
+        try:
+            contents = Path(saved["path"]).read_bytes()
+        except FileNotFoundError:
+            result["status"] = "file_missing"
+        except OSError:
+            result["status"] = "file_unreadable"
+        else:
+            if hashlib.sha256(contents).hexdigest() != saved["sha256"]:
+                result["status"] = "file_changed"
+            elif self.domain_digest() != saved["domain_sha256"]:
+                result["status"] = "stale"
+            else:
+                result["status"] = "ok"
+        return result
+
+    def restore(self, snapshot: dict, source: Path | None = None):
+        if (
+            not isinstance(snapshot, dict)
+            or snapshot.get("schema_version") != 1
+            or not isinstance(snapshot.get("tables"), dict)
+            or set(snapshot["tables"]) != set(TABLES)
+        ):
             raise ValueError("Nieobsługiwany format snapshotu")
+        if any(
+            not isinstance(rows, list) or any(not isinstance(row, dict) for row in rows)
+            for rows in snapshot["tables"].values()
+        ):
+            raise ValueError("Niepoprawne wiersze snapshotu")
         with self.conn:
             for table in reversed(TABLES):
                 self.conn.execute(f"DELETE FROM {table}")
@@ -92,6 +147,16 @@ class Database:
                         f"INSERT INTO {table} ({','.join(columns)}) VALUES ({marks})",
                         tuple(row[c] for c in columns),
                     )
+            self.conn.execute("DELETE FROM metadata WHERE key LIKE 'diagnostic%'")
+            self.set_metadata(
+                "snapshot:restore",
+                {
+                    "at": now(),
+                    "source": str(source.resolve()) if source else None,
+                    "created_at": snapshot.get("created_at"),
+                    "domain_sha256": self.domain_digest(),
+                },
+            )
 
 
 @contextmanager
@@ -131,3 +196,13 @@ def save_snapshot(db: Database, path: Path):
         json.dumps(db.export_snapshot(), ensure_ascii=False, indent=2), encoding="utf-8"
     )
     temporary.replace(path)
+    with db.conn:
+        db.set_metadata(
+            "snapshot:export",
+            {
+                "path": str(path.resolve()),
+                "at": now(),
+                "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                "domain_sha256": db.domain_digest(),
+            },
+        )

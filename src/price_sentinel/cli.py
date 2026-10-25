@@ -4,13 +4,23 @@ import sqlite3
 import sys
 from pathlib import Path
 
-from .alerts import deliver
+from .alerts import deliver, test_webhook
 from .config import Settings
+from .diagnostics import StoreVerifier
 from .history import chart, compare, export_data, history, report
 from .models import Subscription, money
 from .service import Monitor
 from .storage import Database, process_lock, save_snapshot
 from .transport import ReadError
+
+
+def product_url_argument(value: str) -> str:
+    if len(value) >= 2 and value.startswith("'") and value.endswith("'"):
+        raise argparse.ArgumentTypeError(
+            "URL zawiera dosłowne apostrofy. W CMD użyj podwójnych cudzysłowów: "
+            '--url "https://www.x-kom.pl/..."'
+        )
+    return value
 
 
 def parser():
@@ -19,7 +29,9 @@ def parser():
     sub = p.add_subparsers(dest="command", required=True)
     for name in ("add", "edit"):
         cmd = sub.add_parser(name)
-        cmd.add_argument("url" if name == "add" else "id", type=str if name == "add" else int)
+        cmd.add_argument(
+            "url" if name == "add" else "id", type=product_url_argument if name == "add" else int
+        )
         cmd.add_argument("--target", type=money)
         cmd.add_argument("--drop", type=money)
         cmd.add_argument("--percent", type=int)
@@ -27,8 +39,15 @@ def parser():
         cmd.add_argument("--cooldown", type=int, default=21600)
     cmd = sub.add_parser("check")
     cmd.add_argument("id", type=int, nargs="?")
-    cmd.add_argument("--url", help="Dodaj link, jeśli go nie ma, i sprawdź bez Discorda")
+    cmd.add_argument(
+        "--url",
+        type=product_url_argument,
+        help="Dodaj link, jeśli go nie ma, i sprawdź bez Discorda",
+    )
     cmd.add_argument("--notify", action="store_true")
+    cmd = sub.add_parser("verify-store", help="Jednorazowa diagnoza bez historii cen")
+    cmd.add_argument("url", type=product_url_argument)
+    cmd.add_argument("--output", type=Path)
     for name in ("pause", "resume", "remove", "history", "chart", "retry-alerts"):
         cmd = sub.add_parser(name)
         cmd.add_argument("id", type=int)
@@ -42,7 +61,7 @@ def parser():
     cmd.add_argument("--confirm-identical", action="store_true", required=True)
     cmd = sub.add_parser("compare")
     cmd.add_argument("product_id", type=int)
-    for name in ("list", "status", "deliver", "bot"):
+    for name in ("list", "status", "deliver", "bot", "test-webhook"):
         sub.add_parser(name)
     cmd = sub.add_parser("report")
     cmd.add_argument("period", choices=("daily", "weekly"))
@@ -60,6 +79,10 @@ def parser():
 
 
 def execute(args, db, settings):
+    if args.command == "test-webhook":
+        return test_webhook(settings.webhook)
+    if args.command == "verify-store":
+        return StoreVerifier(db, settings).verify(args.url, args.output)
     service = Monitor(db, settings)
     command = args.command
     if command in ("add", "edit"):
@@ -132,7 +155,7 @@ def execute(args, db, settings):
                     raise ValueError("Publiczny snapshot nie może zawierać identyfikatorów Discord")
         save_snapshot(db, args.path)
     elif command == "restore":
-        db.restore(json.loads(args.path.read_text(encoding="utf-8")))
+        db.restore(json.loads(args.path.read_text(encoding="utf-8")), source=args.path)
     return {"status": "ok"}
 
 
@@ -141,6 +164,9 @@ def main():
     settings = Settings()
     path = args.db or settings.db
     try:
+        if args.command == "test-webhook":
+            print(json.dumps(execute(args, None, settings), ensure_ascii=False, indent=2))
+            return 0
         with process_lock(path.with_suffix(".lock")):
             db = Database(path)
             try:
@@ -161,6 +187,8 @@ def main():
                     )
                 if args.command == "deliver":
                     return int(result["błędy"] > 0)
+                if args.command == "verify-store":
+                    return 2 if result["status"] == "rejected" else int(result["status"] != "ok")
                 return 0
             finally:
                 db.close()

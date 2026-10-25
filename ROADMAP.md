@@ -9,13 +9,18 @@
   ręczne grupowanie, porównania, wykres PNG z lukami, eksport CSV/JSON i raporty.
 - Webhook Discord, trwały outbox, deduplikacja, cooldown, ponowienia i blokada mentions.
 - Osobny opcjonalny bot z komendami slash i autoryzacją właściciela/serwera.
-- Blokada procesu, snapshot/restore, CI i domyślnie wyłączony workflow publicznego monitoringu.
+- Blokada procesu, snapshot/restore, konfiguracja CI i ręczny workflow publicznego monitoringu,
+  wyłącznie workflow_dispatch; brak cron. Discord w workflow domyślnie wyłączony.
+- `test-webhook`: pojedynczy POST z maskowaniem logów, sprawdzony mockami HTTP.
+- `verify-store`: jedna próba bez retry, plik diagnostyczny, zero obserwacji i alertów.
+- `status`: liczniki, sukcesy/błędy sklepów, kolejka webhooków i stan lokalnego snapshotu.
 - Testy offline, syntetyczne przypadki i jeden zminimalizowany rzeczywisty fixture.
 
 ## Ograniczenia i dalsze prace
 
-- Media Expert i EURO: HTTP 403 na kategoriach, brak rzeczywistych fixture'ów produktu.
-  Adaptery niezweryfikowane. Wymagają dozwolonego odczytu i porównania danych.
+- Media Expert i EURO: `blocked`, HTTP 403 na kategoriach i konkretnych kartach produktów
+  również po dodaniu jawnych nagłówków. Sitemap EURO dostępny, ale nie daje cen.
+  Nie potwierdzono anonimowego API/RSS cen. Brak fixture'ów cen produktu.
 - x-kom: cena jednego produktu, bez availability w JSON-LD. Brak zweryfikowanych
   selektorów HTML dla dostępności, dostawy i sklepowej ceny referencyjnej z 30 dni.
 - Dostawa i cena referencyjna mają osobne pola, ale obecnie pozostają nieznane.

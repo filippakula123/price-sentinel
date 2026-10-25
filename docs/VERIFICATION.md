@@ -5,8 +5,8 @@ Próby korzystały z SafeHTTP i sprawdzały robots.txt przed kategorią/produkte
 
 | Sklep | Faktyczna próba | Wynik |
 |---|---|---|
-| Media Expert | `/gaming/playstation-5/konsole-ps5` | HTTP 403, bez danych ceny |
-| RTV EURO AGD | `/konsole-playstation-5.bhtml` | HTTP 403, bez danych ceny |
+| Media Expert | `/gaming/playstation-5/konsole-ps5` | HTTP 403, `blocked`, bez danych ceny |
+| RTV EURO AGD | `/konsole-playstation-5.bhtml` | HTTP 403, `blocked`, bez danych ceny |
 | x-kom | `/` | 200, brak linku pasującego do filtra skryptu |
 
 Zapis tej próby: `docs/live-verification.json`; narzędzie: `scripts/probe_stores.py`.
@@ -17,7 +17,7 @@ Następnie w publicznych wynikach wyszukiwania znaleziono konkretną kartę:
 Bezpośredni test CLI o 17:50:16 UTC (18:50 CET) zwrócił poprawny odczyt:
 
 ```powershell
-python -m price_sentinel --db data/live-check.sqlite3 check --url 'https://www.x-kom.pl/p/1195326-konsola-playstation-sony-playstation-5-slim.html'
+python -m price_sentinel --db data/live-check.sqlite3 check --url "https://www.x-kom.pl/p/1195326-konsola-playstation-sony-playstation-5-slim.html"
 ```
 
 JSON-LD Product ma nazwę Sony PlayStation 5 Slim, sku 1195326 i markę Sony. Offer zawiera
@@ -45,7 +45,8 @@ warunków i produktów pozostaje otwarta.
 
 ## Niesprawdzone integracje
 
-- Rzeczywiste produkty Media Expert/EURO i więcej kart/warunków x-kom.
+- Poprawny odczyt cen Media Expert/EURO i więcej kart/warunków x-kom.
+  W kolejnym etapie wykonano próby konkretnych kart: nadal 403; szczegóły w ACCESS_RESEARCH.md.
 - Webhook i sesja bota z rzeczywistymi sekretami; żadnych wiadomości testowych nie wysłano.
 - Uruchomienie GitHub Actions, uprawnienia i rzeczywisty push gałęzi danych.
 - Nie przeprowadzono audytu prawnego ani gwarancji ciągłości odczytu.
