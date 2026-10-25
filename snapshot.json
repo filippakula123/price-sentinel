@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "created_at": "2026-10-25T22:04:21.809244+00:00",
+  "tables": {
+    "products": [
+      {
+        "id": 1,
+        "body": "{\"model\":\"Sony PlayStation 5 Slim\",\"brand\":\"Sony\",\"ean\":null,\"mpn\":\"711719020172 / Sony\",\"variant\":{\"sku\":\"1195326\"}}"
+      }
+    ],
+    "offers": [
+      {
+        "id": 1,
+        "product_id": 1,
+        "url": "https://www.x-kom.pl/p/1195326-konsola-playstation-sony-playstation-5-slim.html",
+        "body": "{\"url\": \"https://www.x-kom.pl/p/1195326-konsola-playstation-sony-playstation-5-slim.html\", \"product_id\": 1, \"seller\": null, \"condition\": \"http://schema.org/NewCondition\", \"variant\": {\"sku\": \"1195326\"}, \"observed_product\": {\"model\": \"Sony PlayStation 5 Slim\", \"brand\": \"Sony\", \"ean\": null, \"mpn\": \"711719020172 / Sony\", \"variant\": {\"sku\": \"1195326\"}}}",
+        "paused": 0,
+        "status": "ok",
+        "last_success": "2026-10-25T22:04:18.732719+00:00"
+      }
+    ],
+    "subscriptions": [
+      {
+        "offer_id": 1,
+        "body": "{\"target\":350000,\"drop_amount\":null,\"drop_percent\":null,\"restock\":false,\"cooldown\":21600,\"destination\":\"default\"}"
+      }
+    ],
+    "observations": [
+      {
+        "id": 1,
+        "offer_id": 1,
+        "at": "2026-10-25T22:04:09.830303+00:00",
+        "body": "{\"at\":\"2026-10-25T22:04:09.830303+00:00\",\"price\":339900,\"currency\":\"PLN\",\"availability\":\"nieznany\",\"shipping\":null,\"promotion\":null,\"store_lowest_30d\":null,\"seller\":null,\"condition\":\"http://schema.org/NewCondition\"}"
+      },
+      {
+        "id": 2,
+        "offer_id": 1,
+        "at": "2026-10-25T22:04:18.732719+00:00",
+        "body": "{\"at\":\"2026-10-25T22:04:18.732719+00:00\",\"price\":339900,\"currency\":\"PLN\",\"availability\":\"nieznany\",\"shipping\":null,\"promotion\":null,\"store_lowest_30d\":null,\"seller\":null,\"condition\":\"http://schema.org/NewCondition\"}"
+      }
+    ],
+    "checks": [
+      {
+        "id": 1,
+        "offer_id": 1,
+        "at": "2026-10-25T22:04:09.830303+00:00",
+        "status": "ok"
+      },
+      {
+        "id": 2,
+        "offer_id": 1,
+        "at": "2026-10-25T22:04:18.732719+00:00",
+        "status": "ok"
+      }
+    ],
+    "alerts": [],
+    "report_runs": []
+  }
+}
