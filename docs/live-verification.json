@@ -1,0 +1,21 @@
+[
+  {
+    "host": "www.mediaexpert.pl",
+    "at": "2026-10-25T17:48:50.505376+00:00",
+    "category": "https://www.mediaexpert.pl/gaming/playstation-5/konsole-ps5",
+    "status": "http_403"
+  },
+  {
+    "host": "www.euro.com.pl",
+    "at": "2026-10-25T17:48:54.027419+00:00",
+    "category": "https://www.euro.com.pl/konsole-playstation-5.bhtml",
+    "status": "http_403"
+  },
+  {
+    "host": "www.x-kom.pl",
+    "at": "2026-10-25T17:48:57.495412+00:00",
+    "category": "https://www.x-kom.pl/",
+    "discovered_links": [],
+    "status": "brak_odkrytego_linku_produktu"
+  }
+]
