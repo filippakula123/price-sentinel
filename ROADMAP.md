@@ -27,7 +27,10 @@
   Wzmianki o kodach/cashback są ostrzeżeniem, nie wyliczeniem ceny warunkowej.
 - Brak wyszukiwania po nazwie i automatycznego łączenia ofert. Helper `identical` nie scala danych.
 - Bot sprawdza na żądanie, bez własnej pętli okresowej; CLI nie działa równocześnie.
-- Nie wykonano wysyłki prawdziwego webhooka, połączenia bota ani uruchomienia workflow na GitHub.
+- Nie wykonano wysyłki prawdziwego webhooka ani połączenia bota.
+- CI na Windows/Ubuntu sprawdzony; pierwszy ręczny monitor Actions uruchomiony.
+  Restore i push snapshotu działają, ale runner otrzymał 403 dla robots.txt x-kom.
+  Monitoring wstrzymano (PUBLIC_SNAPSHOT_ENABLED=false), cron nie istnieje.
 - Brak synchronizacji wielu baz i gwarancji exactly-once z Discordem. Możliwy duplikat
   po przyjęciu wiadomości przez Discord i awarii przed zapisem potwierdzenia.
 - Brak prywatnej persistencji Actions i automatycznej retencji danych; obecny workflow

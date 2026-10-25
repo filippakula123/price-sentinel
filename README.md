@@ -9,6 +9,12 @@ mają status **`blocked`**: HTTP 403 na kategoriach i rzeczywistych kartach prod
 Nie potwierdzono działającego publicznego źródła ich cen. [Dowody i ograniczenia](docs/VERIFICATION.md),
 [roadmapa](ROADMAP.md), [wyniki testów](docs/TESTING.md).
 
+Weryfikacja produkcyjna 25.10.2026: dwa lokalne odczyty x-kom i odtworzenie snapshotu
+poprawne; CI na Windows i Ubuntu zakończony sukcesem. Ręczny runner Actions otrzymał
+HTTP 403 przy odczycie `robots.txt` x-kom i prawidłowo przerwał kontrolę. Zapis snapshotu
+na GitHub działa i zachował wcześniejsze obserwacje. Monitoring w Actions wstrzymano
+(`PUBLIC_SNAPSHOT_ENABLED=false`); cron nie istnieje. Discord nadal wymaga rzeczywistego testu.
+
 ## Pierwsze uruchomienie — Windows / PowerShell lub CMD
 
 Zainstaluj Python 3.12. Jeśli masz launcher `py`, możesz zastąpić `python` przez `py -3.12`.
@@ -234,9 +240,17 @@ nie działają. Prawdziwe połączenie Discord nie było testowane z sekretami.
 ## GitHub Actions i trwałe dane
 
 Skonfigurowano CI z lintem i testami na Windows/Ubuntu, bez sekretów i sieci w testach
-(instalacja wymaga sieci). Faktyczny run GitHub CI nie został jeszcze zweryfikowany.
+(instalacja wymaga sieci). [CI commita e601c90](https://github.com/filippakula123/price-sentinel/actions/runs/40228223231)
+zweryfikowano: oba joby Windows/Ubuntu i wszystkie kroki testów/lintu zakończone sukcesem.
 Monitor: **tylko ręczny `workflow_dispatch`, bez cron i PR**. Wymaga
 repozytoryjnej zmiennej `PUBLIC_SNAPSHOT_ENABLED=true`; nie włączono jej podczas implementacji.
+
+W pierwszej próbie produkcyjnej opt-in włączono tylko na czas jednego ręcznego runu
+z `notify=false`, następnie przywrócono `false`.
+[Run monitoringu](https://github.com/filippakula123/price-sentinel/actions/runs/40238568570)
+potwierdził działający restore i zapis gałęzi danych, lecz kontrola sklepu nie powiodła się:
+`robots_niedostępny:http_403`. Nie oznacza to poprawnie działającego monitoringu cen w Actions.
+Nie ponawiano blokowanego odczytu ani nie obchodzono ograniczeń. Lokalna komenda nadal działa.
 
 Runner jest ulotny. Model persistencji: osobna **publiczna gałąź `sentinel-data`** i snapshot
 JSON, z którego odtwarzana jest SQLite. Zawiera produkty, oferty, reguły, historię, kontrole,

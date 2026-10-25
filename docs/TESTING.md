@@ -2,7 +2,7 @@
 
 Środowisko: Windows, PowerShell, Python 3.12.10, lokalna `.venv`, 25 października 2026.
 Zainstalowano projekt przez `python -m pip install -e ".[dev,discord]"`.
-Nie użyto sekretów Discord ani GitHub w testach.
+Nie użyto sekretów Discord ani GitHub w testach jednostkowych.
 
 | Wykonana kontrola | Wynik |
 |---|---|
@@ -34,9 +34,9 @@ socketów; zastąpiono go bezpośrednim wykonaniem coroutine z całkowicie podmi
 Poprawiono także cooldown przy wielu oczekujących alertach i skalę czasu pojedynczego punktu.
 
 Odczyty online i ograniczenia opisuje [VERIFICATION.md](VERIFICATION.md).
-Media Expert i EURO pozostają niezweryfikowane po HTTP 403. Rzeczywista wysyłka webhooka,
-sesja bota, Ubuntu CI oraz monitor i push na GitHub wymagają odrębnego sprawdzenia.
-Nie uruchomiono harmonogramu i nie opublikowano snapshotu.
+Media Expert i EURO pozostają niezweryfikowane po HTTP 403. Rzeczywista wysyłka webhooka
+i sesja bota wymagają odrębnego sprawdzenia. Późniejszą weryfikację CI, monitora
+i publicznego snapshotu opisano w sekcji produkcyjnej poniżej. Harmonogramu nie uruchomiono.
 
 ## Etap diagnostyki, statusu i ręcznego workflow
 
@@ -63,12 +63,55 @@ Nie uruchomiono harmonogramu i nie opublikowano snapshotu.
   bazy również. Następna dostawa wysyła tylko pending, bez ponowienia sent/failed i bez
   dodania obserwacji. Nie użyto sieci ani prawdziwego webhooka.
 - Workflow monitorowania zmieniono na `workflow_dispatch` z `notify=false` domyślnie.
-  Usunięto schedule/cron. Przejrzano konfigurację; nie wykonano runu GitHub Actions,
-  nie potwierdzono uprawnień runnera ani zdalnego zapisu snapshotu. Lokalny test Git
+  Usunięto schedule/cron. Na tym etapie przejrzano konfigurację bez runu GitHub Actions;
+  dopiero późniejsza próba produkcyjna potwierdziła uprawnienia i zapis snapshotu. Lokalny test Git
   nadal sprawdza push i odrzucenie konfliktu w bare remote.
 
-Wyniki dotyczą lokalnego Windows/Python 3.12.10. Ubuntu i prawdziwa sesja Discord
-pozostają niesprawdzone. Nie dodano nowych sklepów i nie obchodzono blokad.
+Wyniki tego etapu dotyczą lokalnego Windows/Python 3.12.10. Prawdziwa sesja Discord
+pozostaje niesprawdzona. CI Ubuntu sprawdzono później. Nie dodano nowych sklepów i nie obchodzono blokad.
+
+## Pierwsza weryfikacja produkcyjna — 25 października 2026
+
+Zweryfikowany kod: `e601c9029473575f56ae9907fb8f4d525e89bf77`. Nie zmieniano zachowania
+komend ani nie dodawano sklepów. Repozytorium było czyste i zgodne z origin/main;
+nie tworzono pustego commita. Prywatnych plików śledzonych przez Git: 0. Reguły ignorowania
+.env, baz, danych, logów i snapshot-state sprawdzone. Brak skonfigurowanego webhooka.
+
+| Kontrola | Rzeczywisty wynik |
+|---|---|
+| Lokalny pytest | 118 passed, 6,09 s |
+| Ruff / format / pip check | poprawne; 25 plików poprawnie sformatowanych |
+| GitHub CI e601c90 | sukces Windows i Ubuntu, wszystkie kroki lintu/testów |
+| Lokalny check x-kom nr 1 | 22:04:09 UTC: status ok, 339900 groszy, dostępność nieznana |
+| Lokalny check x-kom nr 2 | 22:04:18 UTC: status ok, 339900 groszy, dostępność nieznana |
+| Historia | 2 obserwacje o różnych czasach; bez duplikatów |
+| Dwukrotny restore lokalnego snapshotu | identyczne wszystkie tabele domenowe, stan snapshotu ok |
+| Publiczny seed | tylko nowa baza z jednym publicznym produktem x-kom; 2 rzeczywiste obserwacje |
+| Ręczny Actions, notify=false | run uruchomiony; restore, instalacja i oba zapisy snapshotu udane |
+| Odczyt sklepu z runnera | **NIEUDANY: robots_niedostępny:http_403** |
+| Stan po runie | 2 wcześniejsze obserwacje zachowane, 1 dodatkowa nieudana kontrola, bez fałszywej ceny |
+| Restore zdalnego snapshotu, dwukrotnie | identyczne dane, bez duplikatów; stan alertów zachowany |
+| Webhook w logach runu | nie znaleziono niezamaskowanego pełnego webhooka; krok wysyłki był skipped |
+| Zabezpieczenie po próbie | PUBLIC_SNAPSHOT_ENABLED=false, brak cron; lokalne testowe odczyty zatrzymane |
+| Discord / produkcyjna deduplikacja wiadomości | **NIEZWERYFIKOWANE**: brak webhooka; 0 rzeczywistych alertów |
+
+Dowody z GitHub:
+
+- [CI, run 40228223231](https://github.com/filippakula123/price-sentinel/actions/runs/40228223231).
+- [Pierwszy ręczny monitor, run 40238568570](https://github.com/filippakula123/price-sentinel/actions/runs/40238568570).
+- [Gałąź publicznego stanu](https://github.com/filippakula123/price-sentinel/tree/sentinel-data):
+  seed `1c27009d1f973625acaaf6d948bee93d27052b3b`, stan po runie
+  `ae1f2e5a29d191998b205f9abff7471d16060a76`.
+
+Raporty operacyjne, kopie SQLite, snapshoty i log runu są lokalnie w ignorowanym katalogu
+`data/production-verification-20261025-230305/`. Nie opublikowano wcześniejszej prywatnej
+watchlisty ani lokalnych ścieżek z metadanych. Sekret GitHub wykorzystano tylko w pamięci
+procesu do autoryzowanych operacji API; nie zapisano go w plikach ani wynikach.
+
+Publiczny snapshot zawiera 0 alertów, zatem zachowanie pustego stanu nie dowodzi produkcyjnej
+deduplikacji wysłanych wiadomości. Nie wymuszano dostępności ani nie generowano obserwacji.
+Nie uruchomiono drugiej blokowanej kontroli Actions, nie obchodzono odmowy robots.txt.
+Monitoring cen z Actions pozostaje **zablokowany**, mimo poprawnej persistencji.
 
 ## Poprawka uruchomienia w CMD
 
