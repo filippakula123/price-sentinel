@@ -13,7 +13,9 @@ Weryfikacja produkcyjna 25.10.2026: dwa lokalne odczyty x-kom i odtworzenie snap
 poprawne; CI na Windows i Ubuntu zakończony sukcesem. Ręczny runner Actions otrzymał
 HTTP 403 przy odczycie `robots.txt` x-kom i prawidłowo przerwał kontrolę. Zapis snapshotu
 na GitHub działa i zachował wcześniejsze obserwacje. Monitoring w Actions wstrzymano
-(`PUBLIC_SNAPSHOT_ENABLED=false`); cron nie istnieje. Discord nadal wymaga rzeczywistego testu.
+(`PUBLIC_SNAPSHOT_ENABLED=false`); cron nie istnieje. Rzeczywisty `test-webhook` zakończył
+się HTTP 204 (jedna wiadomość, poprawne maskowanie logów). Sekret Actions skonfigurowano;
+dostarczanie i deduplikacja prawdziwych alertów cenowych pozostają niezweryfikowane.
 
 ## Pierwsze uruchomienie — Windows / PowerShell lub CMD
 
@@ -102,8 +104,10 @@ W CMD ustawienie zmiennej ma postać `set "DISCORD_WEBHOOK_URL=https://discord.c
 kolejki ani reguł, nie ponawia automatycznie wysyłki. W wyniku i logach klienta HTTP
 adres jest maskowany jako `https://discord.com/api/webhooks/***`; wyłączone są mentions.
 Brak zmiennej, błąd sieci i odpowiedź inna niż 200/204 kończą komendę błędem.
-Sprawdzono mocki HTTP, w tym 403/429 i redakcję logów; **rzeczywistego webhooka jeszcze
-nie wysłano**. Uruchom tę komendę lokalnie po skonfigurowaniu własnego webhooka.
+Sprawdzono mocki HTTP, w tym 403/429 i redakcję logów. 25.10.2026 o 22:16:23 UTC
+wykonano również jedną rzeczywistą próbę: Discord zwrócił HTTP 204, a pełny URL i token
+nie pojawiły się w wynikach ani logach. Test pojedynczego webhooka nie jest testem
+dostarczania całej kolejki alertów ani produkcyjnych komend slash.
 
 Bez webhooka `check` nadal zapisuje oczekujące alerty; wysyłka wymaga `--notify` lub `deliver`.
 Jeden cel `default` jest mapowany na env, bez zapisywania identyfikatorów Discord w bazie.

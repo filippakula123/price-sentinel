@@ -47,7 +47,8 @@ warunków i produktów pozostaje otwarta.
 
 - Poprawny odczyt cen Media Expert/EURO i więcej kart/warunków x-kom.
   W kolejnym etapie wykonano próby konkretnych kart: nadal 403; szczegóły w ACCESS_RESEARCH.md.
-- Webhook i sesja bota z rzeczywistymi sekretami; żadnych wiadomości testowych nie wysłano.
+- Sesja bota, rzeczywiste alerty cenowe i ich deduplikacja. Pojedynczy webhook testowy
+  sprawdzono później: jedna odpowiedź HTTP 204 i poprawne maskowanie logów; patrz TESTING.md.
 - Poprawny odczyt x-kom z runnera Actions: pierwsza próba zakończyła się 403 dla robots.txt.
   Samo uruchomienie workflow, restore oraz push gałęzi danych zweryfikowano później;
   szczegółowe wyniki produkcyjne i linki do runów są w TESTING.md.

@@ -6,7 +6,7 @@ Nie użyto sekretów Discord ani GitHub w testach jednostkowych.
 
 | Wykonana kontrola | Wynik |
 |---|---|
-| `.venv\Scripts\python -m pytest -q --tb=short` | **118 passed**, 6,34 s po etapie diagnostyki i snapshotów |
+| `.venv\Scripts\python -m pytest -q --tb=short` | **118 passed**, 5,92 s w regresji po teście rzeczywistego webhooka |
 | `.venv\Scripts\ruff check .` | All checks passed |
 | `.venv\Scripts\ruff format --check src tests scripts` | 25 files already formatted |
 | `.venv\Scripts\python -m pip check` | No broken requirements found |
@@ -34,8 +34,8 @@ socketów; zastąpiono go bezpośrednim wykonaniem coroutine z całkowicie podmi
 Poprawiono także cooldown przy wielu oczekujących alertach i skalę czasu pojedynczego punktu.
 
 Odczyty online i ograniczenia opisuje [VERIFICATION.md](VERIFICATION.md).
-Media Expert i EURO pozostają niezweryfikowane po HTTP 403. Rzeczywista wysyłka webhooka
-i sesja bota wymagają odrębnego sprawdzenia. Późniejszą weryfikację CI, monitora
+Media Expert i EURO pozostają niezweryfikowane po HTTP 403. Sesja bota i prawdziwy alert
+cenowy wymagają odrębnego sprawdzenia. Późniejszą weryfikację webhooka, CI, monitora
 i publicznego snapshotu opisano w sekcji produkcyjnej poniżej. Harmonogramu nie uruchomiono.
 
 ## Etap diagnostyki, statusu i ręcznego workflow
@@ -43,7 +43,7 @@ i publicznego snapshotu opisano w sekcji produkcyjnej poniżej. Harmonogramu nie
 - `test-webhook`: mock HTTP potwierdza dokładnie jeden POST, polską wiadomość i wyłączone
   mentions. Sprawdzono 204, 403, 429 oraz błąd sieci, bez retry. Webhook jest maskowany
   w wynikach, logach httpx/httpcore i standardowym tracebacku błędu. Nie wysyłano
-  wiadomości z prawdziwym webhookiem; produkcyjne potwierdzenie nadal otwarte.
+  na tym etapie wiadomości z prawdziwym webhookiem; późniejszy test produkcyjny opisano poniżej.
 - `verify-store`: testy sukcesu, 403, 429, robots deny, braku ceny, błędu sieci i obcej
   domeny. Przed i po porównano wszystkie tabele domenowe: żadnych nowych produktów,
   ofert, obserwacji, kontroli ani alertów. Jedna próba produktu, bez retry; robots osobno.
@@ -75,7 +75,8 @@ pozostaje niesprawdzona. CI Ubuntu sprawdzono później. Nie dodano nowych sklep
 Zweryfikowany kod: `e601c9029473575f56ae9907fb8f4d525e89bf77`. Nie zmieniano zachowania
 komend ani nie dodawano sklepów. Repozytorium było czyste i zgodne z origin/main;
 nie tworzono pustego commita. Prywatnych plików śledzonych przez Git: 0. Reguły ignorowania
-.env, baz, danych, logów i snapshot-state sprawdzone. Brak skonfigurowanego webhooka.
+.env, baz, danych, logów i snapshot-state sprawdzone. W początkowej próbie webhook
+nie był dostępny; późniejszy test z pliku użytkownika opisano poniżej.
 
 | Kontrola | Rzeczywisty wynik |
 |---|---|
@@ -93,7 +94,8 @@ nie tworzono pustego commita. Prywatnych plików śledzonych przez Git: 0. Regu�
 | Restore zdalnego snapshotu, dwukrotnie | identyczne dane, bez duplikatów; stan alertów zachowany |
 | Webhook w logach runu | nie znaleziono niezamaskowanego pełnego webhooka; krok wysyłki był skipped |
 | Zabezpieczenie po próbie | PUBLIC_SNAPSHOT_ENABLED=false, brak cron; lokalne testowe odczyty zatrzymane |
-| Discord / produkcyjna deduplikacja wiadomości | **NIEZWERYFIKOWANE**: brak webhooka; 0 rzeczywistych alertów |
+| Discord test-webhook | późniejszy test: jedna wiadomość przyjęta, HTTP 204, redakcja logów poprawna |
+| Produkcyjna deduplikacja alertów | **NIEZWERYFIKOWANA**: 0 rzeczywistych alertów cenowych |
 
 Dowody z GitHub:
 
@@ -112,6 +114,35 @@ Publiczny snapshot zawiera 0 alertów, zatem zachowanie pustego stanu nie dowodz
 deduplikacji wysłanych wiadomości. Nie wymuszano dostępności ani nie generowano obserwacji.
 Nie uruchomiono drugiej blokowanej kontroli Actions, nie obchodzono odmowy robots.txt.
 Monitoring cen z Actions pozostaje **zablokowany**, mimo poprawnej persistencji.
+
+## Wznowienie: rzeczywisty webhook — 25 października 2026
+
+Użytkownik wskazał plik z webhookiem, przeniesiony następnie na jego żądanie do lokalnego
+`.env`. Potwierdzono ignorowanie pliku przez Git i brak śledzenia. Odczytano wyłącznie
+wartość webhooka do środowiska procesu testowego; nie zmieniano automatycznego ładowania
+konfiguracji aplikacji. Sekret nie trafił do kodu, testów, dokumentacji ani publicznego snapshotu.
+
+- Test rozpoczęty o **22:16:23 UTC (23:16:23 Europe/Warsaw)**.
+- Dokładnie jedna próba `test-webhook`, bez retry; brak modyfikacji kolejki alertów/bazy.
+- Discord zwrócił **HTTP 204**, komenda zakończyła się kodem 0 i `wysłane=1`.
+- Włączono logowanie INFO klienta HTTP. Sprawdzono przechwycone stdout/stderr:
+  pełnego webhooka ani tokena nie było w wynikach; adres był maskowany.
+- Nie pobierano historii kanału Discord: przyjęcie potwierdza odpowiedź API;
+  wizualne potwierdzenie wiadomości w kanale pozostaje po stronie właściciela.
+- Sekret `DISCORD_WEBHOOK_URL` zapisano w GitHub Actions: HTTP 201, metadane odczytane
+  poprawnie. Wartość zaszyfrowano lokalnie kluczem publicznym repozytorium (libsodium
+  sealed box). Biblioteka kryptograficzna znajduje się tylko w ignorowanym katalogu
+  operacyjnym; zależności aplikacji i pyproject.toml nie zostały zmienione.
+- Nie wykonano dodatkowych wysyłek Discord ani dispatchu Actions. Użycie sekretu
+  przez runner pozostaje niezweryfikowane z powodu blokady odczytu sklepu.
+- Potwierdzono `PUBLIC_SNAPSHOT_ENABLED=false`; cron nadal nie istnieje.
+- Końcowa regresja: **118 passed, 5,92 s**; Ruff, formatowanie i pip check poprawne.
+- [CI dokumentacji 8aaf895](https://github.com/filippakula123/price-sentinel/actions/runs/40238895372):
+  Windows i Ubuntu zakończone sukcesem.
+
+Pozostałe blokady: x-kom robots.txt z runnera Actions (403), Media Expert i EURO (403),
+produkcja prawdziwych alertów cenowych/deduplikacja przy nieznanej dostępności i sesja
+interaktywnego bota. Nie generowano fikcyjnej dostępności, historii ani alertów.
 
 ## Poprawka uruchomienia w CMD
 

@@ -11,7 +11,8 @@
 - Osobny opcjonalny bot z komendami slash i autoryzacją właściciela/serwera.
 - Blokada procesu, snapshot/restore, konfiguracja CI i ręczny workflow publicznego monitoringu,
   wyłącznie workflow_dispatch; brak cron. Discord w workflow domyślnie wyłączony.
-- `test-webhook`: pojedynczy POST z maskowaniem logów, sprawdzony mockami HTTP.
+- `test-webhook`: pojedynczy POST z maskowaniem logów, mocki HTTP i rzeczywista odpowiedź 204.
+  Sekret GitHub Actions zapisany jako zaszyfrowany secret, metadane potwierdzone.
 - `verify-store`: jedna próba bez retry, plik diagnostyczny, zero obserwacji i alertów.
 - `status`: liczniki, sukcesy/błędy sklepów, kolejka webhooków i stan lokalnego snapshotu.
 - Testy offline, syntetyczne przypadki i jeden zminimalizowany rzeczywisty fixture.
@@ -27,7 +28,8 @@
   Wzmianki o kodach/cashback są ostrzeżeniem, nie wyliczeniem ceny warunkowej.
 - Brak wyszukiwania po nazwie i automatycznego łączenia ofert. Helper `identical` nie scala danych.
 - Bot sprawdza na żądanie, bez własnej pętli okresowej; CLI nie działa równocześnie.
-- Nie wykonano wysyłki prawdziwego webhooka ani połączenia bota.
+- Webhook testowy sprawdzony produkcyjnie; nie sprawdzono prawdziwego alertu cenowego,
+  jego deduplikacji ani sesji bota. Użycie sekretu w runnerze Actions niezweryfikowane.
 - CI na Windows/Ubuntu sprawdzony; pierwszy ręczny monitor Actions uruchomiony.
   Restore i push snapshotu działają, ale runner otrzymał 403 dla robots.txt x-kom.
   Monitoring wstrzymano (PUBLIC_SNAPSHOT_ENABLED=false), cron nie istnieje.
