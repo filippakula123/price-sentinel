@@ -90,9 +90,87 @@ nie trafiają do listy najbliższych celów. Raport nie odczytuje sklepów i nic
 Istniejące `report daily`, `report weekly` i ich `--notify` zachowują dotychczasowe działanie;
 `report --notify` bez okresu jest błędem. `status` pozostaje szczegółową diagnostyką.
 
-Nowe komendy zweryfikowano **offline**, syntetycznym HTML i atrapami Discord;
-nie wykonano dodatkowego rzeczywistego check/daily ani wysyłki. Cron jest wyłączony,
-adaptery i publiczny snapshot nie zostały zmienione.
+Komendy sprawdzono offline, a 26.10.2026 także produkcyjnie: dwa `daily`, każde
+1 udany odczyt i dokładnie 1 wywołanie deliver; historia 1 → 3, bez duplikatów.
+Istniejąca oferta nie ma celu: 0 nowych alertów i 0 wysyłek. Nie zmieniano jej reguły.
+Test zadania Windows dodał jeszcze 1 udaną obserwację (3 → 4), LastTaskResult=0.
+Dokładne wyniki i granice sprawdzenia są w [TESTING.md](docs/TESTING.md).
+Cron jest wyłączony; adaptery i publiczny snapshot nie zostały zmienione.
+
+## Automatyzacja lokalna — Windows Task Scheduler
+
+**Skonfigurowano i przetestowano** zadanie `PriceSentinel-Daily`: codziennie o **20:00
+czasu lokalnego Windows**, dla bieżącego użytkownika, bez podwyższonych uprawnień.
+`StartWhenAvailable` pozwala nadrobić przegapiony termin po powrocie komputera do pracy;
+zadanie może zaczynać i kontynuować pracę na baterii. `IgnoreNew` nie uruchamia drugiej
+instancji zadania równolegle; aplikacja dodatkowo blokuje bazę. Nie ustawiono
+automatycznych restartów ani wybudzania komputera.
+
+Wymaga zalogowanej sesji tego samego użytkownika Windows (ekran może być zablokowany).
+Po wylogowaniu lub wyłączeniu komputera nie pracuje; po powrocie musi być dostępna
+sesja użytkownika. Nie zapisuje hasła konta Windows i nie działa jako SYSTEM.
+Przegapienie terminu obsługuje natywny harmonogram; faktycznego wybudzenia i pracy
+na baterii jeszcze nie testowano, potwierdzono ich ustawienia.
+
+Akcja uruchamia `scripts/run_daily.ps1` w roboczym katalogu repozytorium. Wrapper
+wywołuje `.venv\Scripts\python.exe -m price_sentinel --db data\sentinel.sqlite3 daily`
+z jawną ścieżką bazy. Przed startem wymaga istniejącej bazy, aby nie utworzyć pustej
+watchlisty przez błąd ścieżki. Nie uruchamiaj ręcznych poleceń ani bota na tej samej
+bazie podczas zadania. Zmiana lokalizacji repo wymaga ponownej konfiguracji zadania.
+
+Webhook pochodzi z `private/scheduler/webhook.dpapi`: szyfrowanie **DPAPI CurrentUser**,
+ACL wyłącznie bieżącego SID i SYSTEM. Instalator czyta lokalny `.env` w pamięci;
+wrapper odszyfrowuje wartość w pamięci i przekazuje ją tylko w środowisku procesu Python.
+Nie ma jej w argumentach, XML zadania, skryptach wersjonowanych ani historii poleceń.
+Plik DPAPI wymaga tego samego profilu Windows; nie jest przenośną kopią sekretu.
+Zmiana `.env` sama nie aktualizuje sekretu zadania.
+
+Logi UTF-8 trafiają do ignorowanego `logs/daily-YYYY-MM-DD.log`. Wrapper maskuje pełny
+znany webhook i token przed zapisem, a błędy konfiguracji zapisuje bez kontekstu sekretu.
+Zwraca kod daily (0/1/2), a przekroczenie 10 minut kończy proces Python kodem 124.
+Harmonogram ma dodatkowy limit **15 minut**. Nie ma automatycznego ponowienia zadania;
+zaległą kolejką zarządza dotychczasowy retry aplikacji. Sprawdzaj LastTaskResult i logi.
+Wymuszone zatrzymanie podczas wysyłki może pozostawić niepewny stan Discord; przed
+ponowieniem porównaj kanał i bazę, aby nie wygenerować duplikatu po awarii.
+
+Tworzenie na tej samej lub nowej instalacji, **dopiero po udanym ręcznym daily**,
+z istniejącą bazą i webhookiem w lokalnym `.env` (obecne zadanie jest już utworzone):
+
+```powershell
+Set-Location "C:\Users\filip\OneDrive\Pulpit\boty\price-sentinel"
+powershell.exe -NoProfile -NonInteractive -ExecutionPolicy RemoteSigned -File .\scripts\install_daily_task.ps1
+```
+
+Instalator odmawia nadpisania istniejącego zadania. Nie wymaga podania sekretu w CLI;
+ponowne utworzenie może użyć istniejącego, odszyfrowywalnego pliku DPAPI. Jeśli lokalna
+polityka blokuje skrypty, instalacja kończy się błędem; nie zmieniaj automatycznie
+globalnej ExecutionPolicy. Wartość `RemoteSigned` dotyczy tylko tego procesu.
+
+Stan i natychmiastowy test (każdy test wykonuje **prawdziwe dodatkowe daily**):
+
+```powershell
+Get-ScheduledTask -TaskName "PriceSentinel-Daily" | Select-Object TaskName,State
+Get-ScheduledTaskInfo -TaskName "PriceSentinel-Daily" | Select-Object LastRunTime,LastTaskResult,NextRunTime
+Start-ScheduledTask -TaskName "PriceSentinel-Daily"
+# Po powrocie zadania do Ready sprawdź nową LastRunTime i LastTaskResult=0:
+Get-ScheduledTaskInfo -TaskName "PriceSentinel-Daily" | Select-Object LastRunTime,LastTaskResult,NextRunTime
+Get-Content -LiteralPath ("logs/daily-" + (Get-Date -Format "yyyy-MM-dd") + ".log") -Tail 80
+```
+
+Wyłączenie, ponowne włączenie i usunięcie (wyłączenie nie przerywa bieżącego przebiegu):
+
+```powershell
+Disable-ScheduledTask -TaskName "PriceSentinel-Daily"
+Enable-ScheduledTask -TaskName "PriceSentinel-Daily"
+# Usuń dopiero gdy zadanie nie jest Running:
+Unregister-ScheduledTask -TaskName "PriceSentinel-Daily" -Confirm:$false
+# Opcjonalnie usuń zaszyfrowaną kopię sekretu po usunięciu zadania:
+Remove-Item -LiteralPath "private/scheduler/webhook.dpapi"
+```
+
+Aby zmienić webhook, wyłącz zadanie i zaczekaj na zakończenie bieżącego przebiegu,
+usuń zadanie oraz plik DPAPI, zaktualizuj lokalny `.env` i ponownie uruchom instalator.
+Nie usuwa to bazy, logów ani `.env`. Żaden z tych kroków nie dotyczy GitHub Actions.
 
 ## Pierwsze uruchomienie — Windows / PowerShell lub CMD
 

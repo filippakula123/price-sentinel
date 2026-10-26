@@ -1,5 +1,80 @@
 # Rzeczywiste wyniki kontroli
 
+## Produkcyjne daily i Windows Task Scheduler — 26 października 2026
+
+Przed próbą repo czyste, branch main zgodny z origin/main, HEAD `3a194ee`;
+ostatnie wcześniejsze commity `1ca3440`, `f8e1c8d`, `5ab80bf`, `b89965e`.
+Użytkownik potwierdził brak zmiennej w swojej sesji, a następnie jawnie zezwolił
+na wczytanie webhooka z istniejącego lokalnego `.env` do środowiska procesu.
+Nie wyświetlano wartości. W agentowym środowisku zmiennej wcześniej również nie było.
+
+Produkcja: istniejąca `data/sentinel.sqlite3`, 1 aktywna oferta PS5 1195326,
+domyślny typ `available_and_price_below`, target=null. Użytkownik zaakceptował próbę
+bez zmiany reguł. Nie tworzono oferty testowej ani nie zmieniano danych produktu.
+Watchlistę przed i po zapisano do plików diagnostycznych; między daily wykonano report.
+
+| Kontrola | Pierwszy daily | Drugi daily |
+|---|---|---|
+| Czas check UTC / Europe/Warsaw | 18:20:42 / 19:20:42 | 18:20:46 / 19:20:46 |
+| Oferty sprawdzone / odczyty udane | 1 / 1 | 1 / 1 |
+| Cena / dostępność | 339900 groszy / nieznany | 339900 groszy / nieznany |
+| Nowe alerty / wiadomości wysłane | 0 / 0 | 0 / 0 |
+| Błędy odczytu / wysyłki | 0 / 0 | 0 / 0 |
+| Wywołania deliver | dokładnie 1 | dokładnie 1 |
+| Kod zakończenia | 0 | 0 |
+| Łączna liczba obserwacji | 1 → 2 | 2 → 3 |
+
+Wywołania deliver zmierzono profilowaniem wywołań funkcji w procesie CLI, bez zmiany
+implementacji daily/adapterów. Zachowano wszystkie wcześniejsze obserwacje;
+przyrost 2 odpowiada dwóm sukcesom. Brak powtórzonych `(offer_id, at)` i fingerprintów.
+Sekret i jego token nie występowały w przechwyconym stdout/stderr.
+
+**Granica weryfikacji:** tabela alertów w tej bazie była i pozostała pusta, więc
+nie było rekordów sent do porównania. Nie potwierdza to produkcyjnej deduplikacji
+wysyłki przez daily. Brak ponownej dostawy sent sprawdzono wcześniej rzeczywistym
+cyklem price_below/deliver, a ponowne daily — testami offline. Przy pustej regule
+brak nowego alertu jest oczekiwany; nie ustawiano sztucznego progu w produkcji.
+
+Utworzono aktywne lokalne zadanie **PriceSentinel-Daily**, codziennie o **20:00**,
+przez Windows Task Scheduler. Potwierdzono odczytem konfiguracji:
+StartWhenAvailable=true, DisallowStartIfOnBatteries=false, StopIfGoingOnBatteries=false,
+MultipleInstances=IgnoreNew, ExecutionTimeLimit=PT15M, principal Interactive/Limited,
+katalog roboczy repozytorium. Nie ustawiono automatycznych restartów. Sesja użytkownika
+musi być zalogowana (może być zablokowana); hasła Windows nie zapisywano.
+
+Webhook zaszyfrowano przez DPAPI CurrentUser w ignorowanym
+`private/scheduler/webhook.dpapi`. ACL pliku odczytano: wyłącznie bieżący SID i SYSTEM.
+Zadanie wywołuje `scripts/run_daily.ps1`, który przekazuje sekret w środowisku dziecka,
+maskuje logi i ogranicza proces Python do 10 minut. Dodatkowy limit zadania: 15 minut.
+Zadanie nie odczytuje `.env` przy każdym starcie; korzysta z chronionej kopii DPAPI.
+
+Test przez Start-ScheduledTask o **18:24:05 UTC / 19:24:05 Europe/Warsaw**:
+LastTaskResult=0, końcowy stan Ready, 1 nowy udany check, historia **3 → 4**,
+0 alertów przed i po, wcześniejsze obserwacje zachowane, brak duplikatów.
+Log `logs/daily-2026-10-26.log` zawiera end daily exit_code=0.
+Sprawdzono pełny znany webhook i token: brak w logu oraz argumentach akcji.
+Następny zaplanowany termin po teście: **26.10.2026 20:00 Europe/Warsaw**.
+
+Nie czekano na zaplanowaną godzinę. Realnego startu po wybudzeniu, na baterii,
+ścieżki wymuszonego timeoutu i pracy po kolejnym dniu nie zweryfikowano;
+potwierdzono ustawienia i jeden ręczny start zadania. Instalator wersjonowany
+udostępnia odtworzenie konfiguracji; nie nadpisuje istniejącego zadania.
+Nie włączono cron, nie uruchamiano Actions, nie dotykano publicznego snapshotu.
+Adaptery i komendy aplikacji pozostały bez zmian.
+
+Dowody lokalne (poza Gitem): `data/daily-verification-20261026-191805/` —
+watchlist-before.json, watchlist-after.json, before-state.json, after-first-state.json,
+after-second-state.json, daily-first.json, daily-second.json,
+liczniki deliver, report-between.txt, production-daily-result.json,
+scheduler-configuration.json i scheduler-test-result.json. Prywatna baza i logi
+nie zostały opublikowane. Pierwszy zapis watchlisty przez pipeline PowerShell miał
+uszkodzone polskie klucze; zastąpiono go poprawnym przechwyceniem UTF-8 w Pythonie.
+Końcowa regresja: **153 passed, 8,03 s**; Ruff i formatowanie (28 plików Python)
+poprawne. Parser Windows PowerShell **5.1.26100.9711** zaakceptował oba skrypty;
+sprawdzono konstruktory ACL i odczytem RestartCount=0. Pierwszy odczyt zadania
+w sandboxie zwrócił Access denied; powtórzenie z zatwierdzonym dostępem systemowym
+powiodło się. Nie był to błąd działania zadania uruchomionego przez Windows.
+
 ## Codzienne komendy — 26 października 2026, tylko offline
 
 Regresja po dodaniu `daily`, `watchlist` i `report` bez okresu:

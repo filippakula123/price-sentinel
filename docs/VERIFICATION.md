@@ -68,5 +68,11 @@ Testy jednostkowe są offline: autouse fixture blokuje DNS i połączenia socket
 z FakeHTTP i atrapami dostawy Discord. Nie wykonywano dodatkowego rzeczywistego
 check/daily na żadnej bazie. Nie użyto sekretów produkcyjnych, nie zmieniano adapterów,
 publicznego snapshotu ani workflow monitorowania. Nie włączono cron.
-Nowe komendy nie zostały jeszcze osobno zweryfikowane produkcyjnie;
-dotychczasowy rzeczywisty test price_below pozostaje opisany w TESTING.md.
+Powyższe dotyczy pierwszego etapu offline. Następnie, za zgodą użytkownika,
+26.10.2026 wykonano dwa daily na istniejącej bazie produkcyjnej: oba check ok,
+po jednym deliver, 0 alertów przy target=null, historia 1 → 3 bez duplikatów.
+Sprawdzono watchlist i report. Ręczny start zadania Windows zakończył się kodem 0,
+historia 3 → 4; webhook nie wystąpił w logach ani argumentach zadania.
+Harmonogram Windows aktywny na 20:00, cron nadal wyłączony. Publiczny snapshot
+nietknięty. Realne wybudzenie/bateria i pierwszy zaplanowany start pozostają
+niezweryfikowane. Szczegóły oraz ograniczenie pustej kolejki alertów w TESTING.md.

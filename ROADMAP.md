@@ -12,8 +12,12 @@
   Walidacja progu/kombinacji, zachowane stare fingerprinty; CLI i opcje slash.
   Lokalnie sprawdzono rzeczywistą dostawę price_below: jedna wysyłka, kolejny deliver zero.
 - Codzienne CLI: `daily` (aktywne oferty + jeden deliver), `watchlist`, krótki `report`
-  bez okresu. Nowe ścieżki sprawdzone offline, bez nowych odczytów sklepów i wysyłek.
+  bez okresu. Dwa produkcyjne daily: po jednym sukcesie i jednym deliver, bez alertów
+  przy pustym celu, historia 1 → 3 bez duplikatów. Watchlist i report sprawdzone lokalnie.
   Istniejące raporty daily/weekly zachowane; `daily` wymaga webhooka przed odczytami.
+- Lokalne zadanie Windows PriceSentinel-Daily: 20:00, StartWhenAvailable, bateria,
+  IgnoreNew, limit 15 minut, DPAPI CurrentUser i osobne logi. Ręczny test zadania udany,
+  historia 3 → 4. Wymaga zalogowanej sesji; realne wybudzenie/bateria jeszcze niesprawdzone.
 - Osobny opcjonalny bot z komendami slash i autoryzacją właściciela/serwera.
 - Blokada procesu, snapshot/restore, konfiguracja CI i ręczny workflow publicznego monitoringu,
   wyłącznie workflow_dispatch; brak cron. Discord w workflow domyślnie wyłączony.
