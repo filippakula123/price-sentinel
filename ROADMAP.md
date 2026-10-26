@@ -30,8 +30,10 @@
 - Bot sprawdza na żądanie, bez własnej pętli okresowej; CLI nie działa równocześnie.
 - Webhook testowy sprawdzony produkcyjnie; nie sprawdzono prawdziwego alertu cenowego,
   jego deduplikacji ani sesji bota. Użycie sekretu w runnerze Actions niezweryfikowane.
-- CI na Windows/Ubuntu sprawdzony; pierwszy ręczny monitor Actions uruchomiony.
+- CI na Windows/Ubuntu sprawdzony; dwa ręczne runy Actions wykonane (drugi 26.10.2026).
   Restore i push snapshotu działają, ale runner otrzymał 403 dla robots.txt x-kom.
+  Druga próba zachowała 2 obserwacje, dodała tylko błąd kontroli, bez duplikatów;
+  stan alertów nadal pusty. Wyniki i ograniczenia w docs/TESTING.md.
   Monitoring wstrzymano (PUBLIC_SNAPSHOT_ENABLED=false), cron nie istnieje.
 - Brak synchronizacji wielu baz i gwarancji exactly-once z Discordem. Możliwy duplikat
   po przyjęciu wiadomości przez Discord i awarii przed zapisem potwierdzenia.

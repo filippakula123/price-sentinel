@@ -50,6 +50,8 @@ warunków i produktów pozostaje otwarta.
 - Sesja bota, rzeczywiste alerty cenowe i ich deduplikacja. Pojedynczy webhook testowy
   sprawdzono później: jedna odpowiedź HTTP 204 i poprawne maskowanie logów; patrz TESTING.md.
 - Poprawny odczyt x-kom z runnera Actions: pierwsza próba zakończyła się 403 dla robots.txt.
+  Druga ręczna próba 26.10.2026 (run 40370548015, notify=false) również: 403 robots.txt.
+  Snapshot zachował 2 obserwacje bez duplikatów; przyrost 0 zgodny z blokadą.
   Samo uruchomienie workflow, restore oraz push gałęzi danych zweryfikowano później;
   szczegółowe wyniki produkcyjne i linki do runów są w TESTING.md.
 - Nie przeprowadzono audytu prawnego ani gwarancji ciągłości odczytu.

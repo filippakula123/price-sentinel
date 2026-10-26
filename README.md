@@ -16,6 +16,10 @@ na GitHub działa i zachował wcześniejsze obserwacje. Monitoring w Actions wst
 (`PUBLIC_SNAPSHOT_ENABLED=false`); cron nie istnieje. Rzeczywisty `test-webhook` zakończył
 się HTTP 204 (jedna wiadomość, poprawne maskowanie logów). Sekret Actions skonfigurowano;
 dostarczanie i deduplikacja prawdziwych alertów cenowych pozostają niezweryfikowane.
+Drugi ręczny run 26.10.2026 (`notify=false`) również otrzymał 403 dla robots.txt;
+zachował 2 obserwacje bez duplikatów, dodał tylko zapis nieudanej kontroli.
+Użytkownik potwierdził otrzymanie wiadomości testowej Discord. Szczegóły i propozycja
+testu rzeczywistego alertu: [TESTING.md](docs/TESTING.md).
 
 ## Pierwsze uruchomienie — Windows / PowerShell lub CMD
 
@@ -254,7 +258,9 @@ z `notify=false`, następnie przywrócono `false`.
 [Run monitoringu](https://github.com/filippakula123/price-sentinel/actions/runs/40238568570)
 potwierdził działający restore i zapis gałęzi danych, lecz kontrola sklepu nie powiodła się:
 `robots_niedostępny:http_403`. Nie oznacza to poprawnie działającego monitoringu cen w Actions.
-Nie ponawiano blokowanego odczytu ani nie obchodzono ograniczeń. Lokalna komenda nadal działa.
+Na jawne żądanie użytkownika wykonano [drugi run](https://github.com/filippakula123/price-sentinel/actions/runs/40370548015)
+26.10.2026, również z `notify=false`: ta sama blokada, poprawna persistencja bez nowych
+obserwacji. Ponownie wyłączono opt-in. Nie obchodzono ograniczeń.
 
 Runner jest ulotny. Model persistencji: osobna **publiczna gałąź `sentinel-data`** i snapshot
 JSON, z którego odtwarzana jest SQLite. Zawiera produkty, oferty, reguły, historię, kontrole,

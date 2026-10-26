@@ -112,7 +112,8 @@ procesu do autoryzowanych operacji API; nie zapisano go w plikach ani wynikach.
 
 Publiczny snapshot zawiera 0 alertów, zatem zachowanie pustego stanu nie dowodzi produkcyjnej
 deduplikacji wysłanych wiadomości. Nie wymuszano dostępności ani nie generowano obserwacji.
-Nie uruchomiono drugiej blokowanej kontroli Actions, nie obchodzono odmowy robots.txt.
+Na tym etapie nie uruchomiono drugiej kontroli Actions; późniejszą próbę na jawne
+żądanie użytkownika opisano poniżej. Nie obchodzono odmowy robots.txt.
 Monitoring cen z Actions pozostaje **zablokowany**, mimo poprawnej persistencji.
 
 ## Wznowienie: rzeczywisty webhook — 25 października 2026
@@ -143,6 +144,107 @@ konfiguracji aplikacji. Sekret nie trafił do kodu, testów, dokumentacji ani pu
 Pozostałe blokady: x-kom robots.txt z runnera Actions (403), Media Expert i EURO (403),
 produkcja prawdziwych alertów cenowych/deduplikacja przy nieznanej dostępności i sesja
 interaktywnego bota. Nie generowano fikcyjnej dostępności, historii ani alertów.
+
+## Drugi ręczny run — 26 października 2026
+
+Użytkownik potwierdził otrzymanie testowej wiadomości Discord. Przed kolejną próbą
+repozytorium było czyste, branch `main`, lokalny HEAD i zdalny main zgodne:
+`b89965e32d46a708da164f90d36033f26f3d04ad`. Ostatnie wcześniejsze commity:
+`8aaf895` (wyniki pierwszej próby) i `e601c90` (implementacja komend i workflow).
+GitHub REST zwrócił metadane sekretu `DISCORD_WEBHOOK_URL` (HTTP 200);
+wartości sekretu nie pobierano ani nie wyświetlano.
+
+Na jawne żądanie wykonano jeden dodatkowy `workflow_dispatch`, `ref=main`,
+`notify=false`: [run 40370548015](https://github.com/filippakula123/price-sentinel/actions/runs/40370548015),
+rozpoczęty **17:38:42 UTC / 18:38:42 Europe/Warsaw**. Zgodę na publiczny snapshot
+włączono tylko na czas próby, po zakończeniu przywrócono i odczytem potwierdzono
+`PUBLIC_SNAPSHOT_ENABLED=false`. Workflow nadal nie zawiera schedule/cron.
+
+| Kontrola | Wynik drugiej próby |
+|---|---|
+| Wynik całego runu | **failure**, odczyt robots.txt x-kom: `robots_niedostępny:http_403` |
+| Instalacja, restore, oba zapisy i push snapshotu | sukces |
+| Wysyłka alertów i raportów | skipped, zgodnie z `notify=false` |
+| Obserwacje przed → po | **2 → 2**, przyrost **0**, oczekiwany przy odmowie odczytu |
+| Poprzednie obserwacje i kontrole | zachowane; dokładne porównanie wierszy |
+| Nowe kontrole | dokładnie 1, nieudana; brak sztucznej ceny/obserwacji |
+| Duplikaty obserwacji | brak według ID oraz pary `(offer_id, at)` |
+| Alerty przed → po | **0 → 0**, tabele identyczne |
+| Dwukrotny restore pobranego snapshotu | identyczne wszystkie tabele domenowe |
+| Pełne logi runu | brak pełnego lokalnego webhooka, jego tokenu i użytego tokenu GitHub; brak wzorca pełnego webhooka Discord |
+
+Gałąź danych przed: `ae1f2e5a29d191998b205f9abff7471d16060a76`,
+po: `1fdced573142de5420516d8de7e800766d368d4a`. Snapshot pobrano przez API
+z konkretnego commita gałęzi `sentinel-data`. Dowody lokalne w ignorowanym katalogu
+`data/production-verification-20261025-230305/`: `second-dispatch.json`,
+`second-before-snapshot.json`, `second-after-snapshot.json`, `second-result.json`
+i `second-actions-40370548015.log` (kopia logów po dodatkowym maskowaniu).
+
+Krok `Check offers` ma `continue-on-error`: jego conclusion może być `success`
+mimo błędnego outcome. Końcowy krok `Surface failed shop controls` prawidłowo
+oznaczył cały run jako nieudany. Nie zmieniano workflow ani adaptera.
+
+**Granice weryfikacji:** brak wzrostu obserwacji wynika z blokady; nie potwierdzono
+udanego pobrania ceny w Actions. Zachowanie pustej tabeli alertów nie dowodzi braku
+cofnięcia stanów `sent`/`pending` w produkcji. To nadal potwierdzają wyłącznie testy
+integracyjne offline. Przy `notify=false` sekret nie jest używany przez krok wysyłki;
+sprawdzenie logów nie stanowi testu maskowania sekretu w aktywnej wysyłce Actions.
+Skan obejmował znany webhook/token i credential GitHub, nie wszystkie możliwe sekrety.
+Regresja po drugiej próbie: **118 passed, 6,67 s**; `ruff check src tests scripts`,
+`ruff format --check src tests scripts` (25 plików) i `git diff --check` poprawne.
+
+### Proponowany test rzeczywistego alertu — jeszcze niewykonany
+
+Test należy wykonać lokalnie, w osobnej, nowej bazie, bez zmiany publicznego snapshotu
+i bez uruchamiania bota lub workflow równolegle. Użyć tylko jednego testowego produktu
+z istniejącej allowlisty, dla którego adapter w rzeczywistym odczycie potwierdza
+`availability=dostępny`. Wysoki próg sam nie wystarczy: aktualnie sprawdzana karta
+PS5 zwraca dostępność nieznaną, więc **nie kwalifikuje się do wysyłki**. Nie zmieniać
+ręcznie dostępności, obserwacji ani kolejki, aby wymusić alert.
+
+Po wskazaniu takiego produktu i wczytaniu istniejącego webhooka z lokalnego `.env`
+wyłącznie do środowiska procesu (aplikacja nie ładuje `.env` automatycznie):
+
+```powershell
+$py = ".\.venv\Scripts\python.exe"
+$db = "data/alert-production-test.sqlite3"
+if (Test-Path -LiteralPath $db) { throw "Użyj nowej bazy; nie nadpisuj poprzedniego testu" }
+# $testUrl: rzeczywisty URL produktu z potwierdzoną dostępnością.
+# $targetPln: wysoki próg w PLN, większy od rzeczywistej ceny tego produktu.
+$offerId = (& $py -m price_sentinel --db $db add $testUrl --target $targetPln | ConvertFrom-Json).id
+if ($LASTEXITCODE -ne 0 -or -not $offerId) { throw "Nie utworzono reguły" }
+& $py -m price_sentinel --db $db check $offerId
+& $py -m price_sentinel --db $db snapshot "data/alert-before-deliver.json"
+# STOP: sprawdź dokładnie jeden alert pending, zero sent/failed oraz prawdziwą dostępność.
+# Dopiero po spełnieniu warunków i ustaleniu, że webhook wskazuje kanał testowy:
+& $py -m price_sentinel --db $db deliver
+# STOP przy błędzie lub niepewnym wyniku; nie ponawiaj automatycznie.
+# Oczekiwane: wysłane=1, błędy=0; potwierdzenie jednej wiadomości w Discord.
+& $py -m price_sentinel --db $db snapshot "data/alert-after-first-deliver.json"
+& $py -m price_sentinel --db $db deliver
+# Oczekiwane: wysłane=0, błędy=0; żadnej drugiej wiadomości.
+& $py -m price_sentinel --db $db snapshot "data/alert-after-second-deliver.json"
+```
+
+Porównać snapshoty: po pierwszym deliver dokładnie jeden rekord `sent`, `attempts=1`,
+niepuste `sent_at`; po drugim identyczna tabela alertów i niezmieniona historia.
+Potwierdza to brak ponownej dostawy wysłanego rekordu. Pełny test deduplikacji
+tworzenia kolejki wymaga dodatkowego prawdziwego `check` tego samego produktu przy
+tej samej cenie/regule/dostępności, bez nowego alertu, a potem `deliver` z wynikiem 0.
+Jeśli stan produktu się zmieni, nie uznawać tej części za zweryfikowaną.
+
+Po zapisaniu dowodów i zakończeniu testu usunąć testową ofertę wraz z regułą:
+
+```powershell
+& $py -m price_sentinel --db $db remove $offerId
+& $py -m price_sentinel --db $db status
+Remove-Item Env:DISCORD_WEBHOOK_URL -ErrorAction SilentlyContinue
+```
+
+`remove` usuwa również historię i alerty tej oferty, dlatego dowody zapisać wcześniej.
+Nie odtwarzać snapshotu sprzed wysyłki do bazy używanej do dalszych dostaw: cofnęłoby
+to stan `sent`. Awaria po przyjęciu przez Discord, ale przed zapisem `sent`, nadal
+może spowodować duplikat — nie deklarujemy gwarancji exactly-once.
 
 ## Poprawka uruchomienia w CMD
 
