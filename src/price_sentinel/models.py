@@ -4,7 +4,7 @@ from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from enum import StrEnum
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 def now() -> str:
@@ -68,12 +68,22 @@ class Observation(BaseModel):
 
 
 class Subscription(BaseModel):
+    rule_type: Literal["price_below", "available_and_price_below"] = "available_and_price_below"
     target: int | None = Field(default=None, gt=0)
     drop_amount: int | None = Field(default=None, gt=0)
     drop_percent: int | None = Field(default=None, gt=0, le=100)
     restock: bool = False
     cooldown: int = Field(default=21600, ge=0)
     destination: str = "default"
+
+    @model_validator(mode="after")
+    def validate_price_only(self):
+        if self.rule_type == "price_below":
+            if self.target is None:
+                raise ValueError("price_below wymaga progu target")
+            if self.drop_amount is not None or self.drop_percent is not None or self.restock:
+                raise ValueError("price_below obsługuje wyłącznie target, bez drop/percent/restock")
+        return self
 
 
 def identical(a: Product, b: Product) -> bool:

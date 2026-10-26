@@ -14,15 +14,13 @@ poprawne; CI na Windows i Ubuntu zakończony sukcesem. Ręczny runner Actions ot
 HTTP 403 przy odczycie `robots.txt` x-kom i prawidłowo przerwał kontrolę. Zapis snapshotu
 na GitHub działa i zachował wcześniejsze obserwacje. Monitoring w Actions wstrzymano
 (`PUBLIC_SNAPSHOT_ENABLED=false`); cron nie istnieje. Rzeczywisty `test-webhook` zakończył
-się HTTP 204 (jedna wiadomość, poprawne maskowanie logów). Sekret Actions skonfigurowano;
-dostarczanie i deduplikacja prawdziwych alertów cenowych pozostają niezweryfikowane.
+się HTTP 204 (jedna wiadomość, poprawne maskowanie logów). Sekret Actions skonfigurowano.
 Drugi ręczny run 26.10.2026 (`notify=false`) również otrzymał 403 dla robots.txt;
 zachował 2 obserwacje bez duplikatów, dodał tylko zapis nieudanej kontroli.
-Użytkownik potwierdził otrzymanie wiadomości testowej Discord. Szczegóły i propozycja
-testu rzeczywistego alertu: [TESTING.md](docs/TESTING.md).
-Lokalna próba alertu 26.10.2026: cena 3399 zł przy progu 10 000 zł, ale dostępność
-nieznana zablokowała utworzenie alertu. Dwa `deliver` wysłały 0 wiadomości; regułę
-testową usunięto. Deduplikacja rzeczywistej wysyłki nadal niezweryfikowana.
+Użytkownik potwierdził otrzymanie wiadomości testowej Discord. Lokalnie 26.10.2026
+sprawdzono też prawdziwy alert `price_below`: cena 3399 zł, próg 10 000 zł, dostępność
+nieznana; pierwszy `deliver` wysłał 1 wiadomość, drugi 0. Regułę testową usunięto.
+Szczegóły i granice weryfikacji: [TESTING.md](docs/TESTING.md).
 
 ## Pierwsze uruchomienie — Windows / PowerShell lub CMD
 
@@ -83,11 +81,28 @@ Zastąp `1` rzeczywistym id z wyniku `add` lub `list`:
 .\.venv\Scripts\python -m price_sentinel status
 ```
 
-`edit` zastępuje cały zestaw reguł; pominięte progi zostają wyłączone. Reguły łączą się jako OR.
-Próg działa od pierwszego odczytu, spadek względem poprzedniego poprawnego odczytu.
-Powrót dostępności wymaga wcześniejszego „niedostępny”. Alert cenowy wymaga „dostępny”.
-„Nieznany” nie wyzwala alertów i nie oznacza braku towaru. Zweryfikowana karta x-kom nie
-ma availability w JSON-LD, więc jej alert cenowy obecnie nie powstanie.
+`edit` zastępuje cały zestaw reguł, także typ; pominięte progi zostają wyłączone.
+Domyślny typ `available_and_price_below` zachowuje obecną logikę: wymaga „dostępny”,
+łączy próg/spadki/restock jako OR. Próg działa od pierwszego odczytu (cena **<=** target),
+spadek względem poprzedniego poprawnego odczytu, restock wymaga wcześniejszego „niedostępny”.
+Stare zapisane reguły bez pola `rule_type` zachowują ten typ i stare fingerprinty.
+
+Jawny `price_below` wymaga tylko poprawnego odczytu ceny **<=** target, niezależnie od
+dostępności (także „nieznany” i „niedostępny”). Nie potwierdza możliwości zakupu.
+Wymaga `--target`; połączenie z `--drop`, `--percent` lub `--restock` jest błędem walidacji.
+Cooldown i trwała deduplikacja nadal obowiązują. Zmiana dostępności przy tej samej cenie
+nie tworzy kolejnego fingerprintu tego typu. Wiadomość podaje rzeczywistą dostępność.
+
+```powershell
+.\.venv\Scripts\python -m price_sentinel add "https://www.x-kom.pl/p/1195326-konsola-playstation-sony-playstation-5-slim.html" --rule-type price_below --target "3000"
+# Zastąp 1 ID właściwej oferty. edit zastępuje całą regułę:
+.\.venv\Scripts\python -m price_sentinel edit 1 --rule-type available_and_price_below --target "3000"
+```
+
+`--rule-type` przyjmuje wyłącznie powyższe dwa typy. W slash `/dodaj` i `/edytuj`
+odpowiada mu opcja `typ_reguly`; jej rejestrację sprawdzono offline, bez sesji bota.
+Nieznana dostępność nie oznacza braku towaru. Karta PS5 nie ma availability w JSON-LD:
+blokuje to domyślny typ, ale nie jawny alert wyłącznie cenowy. Błąd odczytu blokuje oba typy.
 
 `remove 1` usuwa ofertę, historię i alerty. Zmianę URL realizuj przez osobne dodanie oferty.
 Zmiana nazwy/marki/EAN/MPN/wariantu pod tym samym URL daje błąd do ręcznej weryfikacji.

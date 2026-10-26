@@ -31,6 +31,8 @@ def pln(cents: int) -> str:
 
 def reasons(rule: Subscription, old: Observation | None, current: Observation) -> list[str]:
     result = []
+    if rule.rule_type == "price_below":
+        return ["cena docelowa"] if current.price <= rule.target else []
     if current.availability != Availability.AVAILABLE:
         return result
     if rule.target is not None and current.price <= rule.target:
@@ -66,8 +68,16 @@ def enqueue(
     ):
         return
     # Ten sam stan cenowy nie jest ponownie wysyłany także po restarcie.
+    # Zachowaj historyczne fingerprinty reguł bez jawnego typu. Dla reguły wyłącznie
+    # cenowej zmiana dostępności nie może wygenerować ponownego alertu o tej samej cenie.
+    rule_key = rule.model_dump()
+    availability_key = current.availability
+    if rule.rule_type == "available_and_price_below":
+        rule_key.pop("rule_type")
+    else:
+        availability_key = None
     key = json.dumps(
-        [oid, rule.model_dump(), current.price, current.availability, matched],
+        [oid, rule_key, current.price, availability_key, matched],
         sort_keys=True,
         ensure_ascii=False,
     )
@@ -83,6 +93,8 @@ def enqueue(
         f"{pln(current.shipping) if current.shipping is not None else 'nieznana'}.\n"
         f"Warunki promocji: {current.promotion or 'nieustalone; sprawdź ofertę'}. "
     )
+    if rule.rule_type == "price_below":
+        content += f"\nReguła: price_below (tylko cena). Dostępność: {current.availability}."
     db.conn.execute(
         "INSERT OR IGNORE INTO alerts(offer_id,fingerprint,content,destination,next_attempt) "
         "VALUES (?,?,?,?,?)",

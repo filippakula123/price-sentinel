@@ -8,6 +8,9 @@
 - CLI: CRUD, pauza, progi/spadki/powrót dostępności, historia i minima 7/30/90,
   ręczne grupowanie, porównania, wykres PNG z lukami, eksport CSV/JSON i raporty.
 - Webhook Discord, trwały outbox, deduplikacja, cooldown, ponowienia i blokada mentions.
+- Jawne typy reguł `price_below` (tylko cena) i domyślny `available_and_price_below`.
+  Walidacja progu/kombinacji, zachowane stare fingerprinty; CLI i opcje slash.
+  Lokalnie sprawdzono rzeczywistą dostawę price_below: jedna wysyłka, kolejny deliver zero.
 - Osobny opcjonalny bot z komendami slash i autoryzacją właściciela/serwera.
 - Blokada procesu, snapshot/restore, konfiguracja CI i ręczny workflow publicznego monitoringu,
   wyłącznie workflow_dispatch; brak cron. Discord w workflow domyślnie wyłączony.
@@ -28,10 +31,11 @@
   Wzmianki o kodach/cashback są ostrzeżeniem, nie wyliczeniem ceny warunkowej.
 - Brak wyszukiwania po nazwie i automatycznego łączenia ofert. Helper `identical` nie scala danych.
 - Bot sprawdza na żądanie, bez własnej pętli okresowej; CLI nie działa równocześnie.
-- Webhook testowy sprawdzony produkcyjnie; nie sprawdzono prawdziwego alertu cenowego,
-  jego deduplikacji ani sesji bota. Użycie sekretu w runnerze Actions niezweryfikowane.
-  Lokalna próba 26.10.2026 w nowej bazie: próg 10 000 zł > cena 3399 zł, ale dostępność
-  nieznana; 0 alertów i 0 wysyłek w dwóch deliver. Regułę testową usunięto.
+- Webhook i lokalny alert `price_below` sprawdzone produkcyjnie. Nie sprawdzono sesji bota
+  ani użycia sekretu w runnerze Actions. Pierwsza próba domyślnego typu nie utworzyła
+  alertu przy nieznanej dostępności; późniejszy jawny price_below wysłał jeden alert.
+  Brak drugiej dostawy potwierdzono w produkcji; ponowne enqueue tej samej ceny,
+  zmiany dostępności i restart/restore sprawdzono tylko offline.
 - CI na Windows/Ubuntu sprawdzony; dwa ręczne runy Actions wykonane (drugi 26.10.2026).
   Restore i push snapshotu działają, ale runner otrzymał 403 dla robots.txt x-kom.
   Druga próba zachowała 2 obserwacje, dodała tylko błąd kontroli, bez duplikatów;

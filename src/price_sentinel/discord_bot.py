@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import os
+from typing import Literal
 
 from .alerts import deliver
 from .config import Settings
@@ -80,11 +81,21 @@ def run(db, settings: Settings):
                 await respond(interaction, action)
 
             @self.tree.command(name="dodaj", description="Dodaj konkretny link HTTPS")
-            async def dodaj(interaction: discord.Interaction, url: str, cel: str | None = None):
+            async def dodaj(
+                interaction: discord.Interaction,
+                url: str,
+                cel: str | None = None,
+                typ_reguly: Literal[
+                    "price_below", "available_and_price_below"
+                ] = "available_and_price_below",
+            ):
                 await respond(
                     interaction,
                     lambda: {
-                        "id": service.add(url, Subscription(target=money(cel) if cel else None))
+                        "id": service.add(
+                            url,
+                            Subscription(rule_type=typ_reguly, target=money(cel) if cel else None),
+                        )
                     },
                 )
 
@@ -96,12 +107,16 @@ def run(db, settings: Settings):
                 spadek: str | None = None,
                 procent: int | None = None,
                 powrot: bool = False,
+                typ_reguly: Literal[
+                    "price_below", "available_and_price_below"
+                ] = "available_and_price_below",
             ):
                 await respond(
                     interaction,
                     lambda: service.edit(
                         oferta,
                         Subscription(
+                            rule_type=typ_reguly,
                             target=money(cel) if cel else None,
                             drop_amount=money(spadek) if spadek else None,
                             drop_percent=procent,

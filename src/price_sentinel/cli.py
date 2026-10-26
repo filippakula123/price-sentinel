@@ -33,6 +33,12 @@ def parser():
             "url" if name == "add" else "id", type=product_url_argument if name == "add" else int
         )
         cmd.add_argument("--target", type=money)
+        cmd.add_argument(
+            "--rule-type",
+            choices=("price_below", "available_and_price_below"),
+            default="available_and_price_below",
+            help="price_below ignoruje dostępność; domyślny typ wymaga dostępności",
+        )
         cmd.add_argument("--drop", type=money)
         cmd.add_argument("--percent", type=int)
         cmd.add_argument("--restock", action="store_true")
@@ -87,6 +93,7 @@ def execute(args, db, settings):
     command = args.command
     if command in ("add", "edit"):
         rule = Subscription(
+            rule_type=args.rule_type,
             target=args.target,
             drop_amount=args.drop,
             drop_percent=args.percent,

@@ -229,7 +229,53 @@ sprzątania: ignorowany lokalny `data/real-alert-20261026-174516-1b353b90/result
 Usunięcie testowej oferty skasowało jej historię w tymczasowej bazie; raport zachowuje
 rzeczywisty wynik wcześniejszych odczytów. Pozostałe bazy nie były używane.
 
-### Plan dokończenia testu rzeczywistego alertu — nadal niewykonany
+### Rzeczywisty alert price_below — 26 października 2026
+
+Po jawnej zgodzie użytkownika dodano typ `price_below`, ignorujący dostępność,
+oraz nazwano dotychczasową logikę `available_and_price_below` (domyślna, także dla
+starych reguł bez pola typu). Nie modyfikowano adapterów ani danych produktu.
+Próg zachowuje istniejące porównanie cena <= target. Reguła wyłącznie cenowa wymaga
+dodatniego target i odrzuca drop_amount/drop_percent/restock; nieznany typ jest błędem.
+CLI udostępnia `--rule-type`, slash opcję `typ_reguly` (rejestracja tylko offline).
+
+Pełna regresja: **140 passed, 6,44 s**; Ruff poprawny. Nowe testy offline obejmują
+oba typy, dostępności unknown/available/unavailable, granice ceny (poniżej/równa/powyżej),
+walidację, zapis przez CLI i atomowe odrzucenie błędnej edycji, błędy odczytu,
+stan po dostawie, zgodność historycznych fingerprintów, snapshot/restore i deduplikację
+tej samej ceny mimo zmiany dostępności. Fixture'y są syntetyczne, HTTP bez sieci.
+
+Wykonano jeden rzeczywisty check istniejącej karty PS5 1195326 oraz dwa deliver,
+wyłącznie w nowej bazie `data/price-only-alert-20261026-174944-2236b8fa/temporary.sqlite3`.
+Webhook pobrano z lokalnego `.env` do środowiska procesów. Nie zmieniano bazy produkcyjnej,
+publicznego snapshotu ani gałęzi danych, nie uruchamiano monitora Actions/cron.
+
+| Kontrola | Rzeczywisty wynik |
+|---|---|
+| Reguła | `price_below`, target 1000000 groszy (10 000 zł), cooldown 21600 s |
+| Check | `ok`, 17:49:50 UTC / 18:49:50 Europe/Warsaw, cena 339900 groszy, dostępność `nieznany` |
+| Po check | 1 obserwacja, 1 alert pending, attempts=0, sent_at=null |
+| Pierwszy deliver | wysłane=1, błędy=0, oczekujące=0; Discord zaakceptował wysyłkę |
+| Stan po wysyłce | state=sent, attempts=1, sent_at=`2026-10-26T17:49:51.274495+00:00` |
+| Drugi deliver | wysłane=0, błędy=0, oczekujące=0; tabela alertów identyczna |
+| Fingerprint | `a1946a63dc587a343073aa8bf381702621cf060e0d5dbdcd96274f8956675b12`, niezmieniony przez oba deliver |
+| Duplikaty | brak: dokładnie 1 alert i 1 unikatowy fingerprint; 1 obserwacja bez duplikatów `(offer_id, at)` |
+| Historia | obie dostawy pozostawiły obserwacje bez zmian |
+| Sprzątanie | `remove 1` udane, 0 ofert i 0 subskrypcji w bazie tymczasowej |
+
+Raport z odczytami stanu przed i po obu deliver zapisano lokalnie w ignorowanym
+`data/price-only-alert-20261026-174944-2236b8fa/result.json`. Raport zachowuje dowody
+sprzed usunięcia oferty (usunięcie kaskadowo czyści jej historię i alerty w bazie testowej).
+Nie zapisano sekretu. Przechwycone stdout/stderr sprawdzono na pełny webhook i token;
+nie były obecne. Wiadomość podaje typ price_below i rzeczywistą nieznaną dostępność.
+
+**Zweryfikowano lokalną rzeczywistą wysyłkę i brak ponownej dostawy rekordu sent.**
+Nie pobierano historii Discord: przyjęcie wiadomości potwierdza sukces API, wizualnego
+potwierdzenia tego alertu użytkownik jeszcze nie przekazał. Nie robiono drugiego live check:
+deduplikację tworzenia kolejki dla tej samej ceny, zmian dostępności i restart/restore
+sprawdzono offline. Nie sprawdzono awarii między przyjęciem przez Discord a zapisem sent;
+gwarancja exactly-once nadal nie istnieje. Sekret na runnerze Actions pozostaje niesprawdzony.
+
+### Wcześniejszy plan dla typu wymagającego dostępności
 
 Test należy wykonać lokalnie, w osobnej, nowej bazie, bez zmiany publicznego snapshotu
 i bez uruchamiania bota lub workflow równolegle. Użyć tylko jednego testowego produktu
