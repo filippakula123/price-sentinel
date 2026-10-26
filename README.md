@@ -20,6 +20,9 @@ Drugi ręczny run 26.10.2026 (`notify=false`) również otrzymał 403 dla robots
 zachował 2 obserwacje bez duplikatów, dodał tylko zapis nieudanej kontroli.
 Użytkownik potwierdził otrzymanie wiadomości testowej Discord. Szczegóły i propozycja
 testu rzeczywistego alertu: [TESTING.md](docs/TESTING.md).
+Lokalna próba alertu 26.10.2026: cena 3399 zł przy progu 10 000 zł, ale dostępność
+nieznana zablokowała utworzenie alertu. Dwa `deliver` wysłały 0 wiadomości; regułę
+testową usunięto. Deduplikacja rzeczywistej wysyłki nadal niezweryfikowana.
 
 ## Pierwsze uruchomienie — Windows / PowerShell lub CMD
 

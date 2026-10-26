@@ -30,6 +30,8 @@
 - Bot sprawdza na żądanie, bez własnej pętli okresowej; CLI nie działa równocześnie.
 - Webhook testowy sprawdzony produkcyjnie; nie sprawdzono prawdziwego alertu cenowego,
   jego deduplikacji ani sesji bota. Użycie sekretu w runnerze Actions niezweryfikowane.
+  Lokalna próba 26.10.2026 w nowej bazie: próg 10 000 zł > cena 3399 zł, ale dostępność
+  nieznana; 0 alertów i 0 wysyłek w dwóch deliver. Regułę testową usunięto.
 - CI na Windows/Ubuntu sprawdzony; dwa ręczne runy Actions wykonane (drugi 26.10.2026).
   Restore i push snapshotu działają, ale runner otrzymał 403 dla robots.txt x-kom.
   Druga próba zachowała 2 obserwacje, dodała tylko błąd kontroli, bez duplikatów;

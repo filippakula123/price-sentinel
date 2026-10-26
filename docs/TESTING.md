@@ -193,7 +193,43 @@ Skan obejmował znany webhook/token i credential GitHub, nie wszystkie możliwe 
 Regresja po drugiej próbie: **118 passed, 6,67 s**; `ruff check src tests scripts`,
 `ruff format --check src tests scripts` (25 plików) i `git diff --check` poprawne.
 
-### Proponowany test rzeczywistego alertu — jeszcze niewykonany
+### Lokalna próba rzeczywistego alertu — 26 października 2026
+
+Na jawne żądanie użytkownika wykonano próbę dla istniejącej karty x-kom PS5
+1195326. Utworzono zupełnie nową bazę
+`data/real-alert-20261026-174516-1b353b90/temporary.sqlite3`; nie używano domyślnej
+bazy, gałęzi danych ani publicznego snapshotu. Sekret wczytano z lokalnego `.env`
+wyłącznie do środowiska procesów. Nie zmieniano adapterów, dostępności ani danych
+produktu ręcznie. Nie uruchamiano Actions ani cron.
+
+| Kontrola | Rzeczywisty wynik |
+|---|---|
+| Reguła testowa | target 1000000 groszy = 10 000 zł, cooldown 21600 s |
+| Jedno `check` | `ok`, 26.10.2026 17:45:23 UTC / 18:45:23 Europe/Warsaw |
+| Cena | 339900 groszy = 3399 zł; warunek ceny spełniony |
+| Dostępność | `nieznany`; wymagany warunek `dostępny` niespełniony |
+| Kolejka po check | 0 alertów |
+| Pierwsze `deliver` | wysłane=0, błędy=0, oczekujące=0 |
+| Drugie `deliver` | wysłane=0, błędy=0, oczekujące=0 |
+| Historia przed i po dostawach | ta sama 1 obserwacja i 1 udana kontrola |
+| Duplikaty | brak obserwacji o powtarzającej się parze `(offer_id, at)`; tabela alertów pusta |
+| fingerprint, state, attempts, sent_at | brak rekordu alertu, zatem brak wartości do weryfikacji |
+| Sprzątanie | `remove 1` udane; 0 ofert i 0 subskrypcji w bazie testowej |
+
+Diagnoza na podstawie `alerts.reasons`: funkcja natychmiast zwraca pustą listę
+powodów, jeśli rzeczywista dostępność nie jest `Availability.AVAILABLE`.
+Wysoki próg nie wyłącza tego warunku. Domyślne pola spadku i restock były wyłączone;
+cooldown nie był przyczyną, bo baza nie zawierała wcześniejszych alertów.
+
+**Nie wysłano rzeczywistego alertu cenowego; produkcyjna deduplikacja pozostaje
+niezweryfikowana.** Drugi pusty `deliver` potwierdza tylko brak wysyłki z pustej kolejki.
+Nie tworzono fingerprintu ani nie zmieniano rekordów, aby wymusić test. Nie ponawiano
+check ani wysyłek. Dowód z zapisanym stanem przed i po każdym deliver oraz wynikiem
+sprzątania: ignorowany lokalny `data/real-alert-20261026-174516-1b353b90/result.json`.
+Usunięcie testowej oferty skasowało jej historię w tymczasowej bazie; raport zachowuje
+rzeczywisty wynik wcześniejszych odczytów. Pozostałe bazy nie były używane.
+
+### Plan dokończenia testu rzeczywistego alertu — nadal niewykonany
 
 Test należy wykonać lokalnie, w osobnej, nowej bazie, bez zmiany publicznego snapshotu
 i bez uruchamiania bota lub workflow równolegle. Użyć tylko jednego testowego produktu

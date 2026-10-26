@@ -49,6 +49,9 @@ warunków i produktów pozostaje otwarta.
   W kolejnym etapie wykonano próby konkretnych kart: nadal 403; szczegóły w ACCESS_RESEARCH.md.
 - Sesja bota, rzeczywiste alerty cenowe i ich deduplikacja. Pojedynczy webhook testowy
   sprawdzono później: jedna odpowiedź HTTP 204 i poprawne maskowanie logów; patrz TESTING.md.
+  Próba rzeczywistego alertu 26.10.2026: lokalny check x-kom ok (3399 zł, próg 10 000 zł),
+  dostępność nieznana, brak alertu; dwa deliver wysłały 0 wiadomości. Osobną regułę usunięto.
+  Nie potwierdza to deduplikacji wysłanego alertu; szczegóły w TESTING.md.
 - Poprawny odczyt x-kom z runnera Actions: pierwsza próba zakończyła się 403 dla robots.txt.
   Druga ręczna próba 26.10.2026 (run 40370548015, notify=false) również: 403 robots.txt.
   Snapshot zachował 2 obserwacje bez duplikatów; przyrost 0 zgodny z blokadą.
