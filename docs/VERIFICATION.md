@@ -61,3 +61,12 @@ warunków i produktów pozostaje otwarta.
 
 Testy jednostkowe są offline: autouse fixture blokuje DNS i połączenia socketów.
 Żadna syntetyczna obserwacja nie trafia do domyślnej bazy użytkownika.
+
+## Codzienne komendy — weryfikacja offline, 26 października 2026
+
+`daily`, `watchlist` i skrócony `report` sprawdzono wyłącznie na syntetycznych danych,
+z FakeHTTP i atrapami dostawy Discord. Nie wykonywano dodatkowego rzeczywistego
+check/daily na żadnej bazie. Nie użyto sekretów produkcyjnych, nie zmieniano adapterów,
+publicznego snapshotu ani workflow monitorowania. Nie włączono cron.
+Nowe komendy nie zostały jeszcze osobno zweryfikowane produkcyjnie;
+dotychczasowy rzeczywisty test price_below pozostaje opisany w TESTING.md.

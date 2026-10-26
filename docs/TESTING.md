@@ -1,5 +1,37 @@
 # Rzeczywiste wyniki kontroli
 
+## Codzienne komendy — 26 października 2026, tylko offline
+
+Regresja po dodaniu `daily`, `watchlist` i `report` bez okresu:
+**153 passed, 7,88 s**. Nowe testy korzystają z FakeHTTP/syntetycznego HTML i atrap
+Discord; globalna blokada socketów/DNS pozostaje aktywna. Nie uruchamiano rzeczywistego
+check/daily na bazach testowych ani produkcyjnej, nie wysłano wiadomości Discord,
+nie odczytywano prawdziwego webhooka. Publiczny snapshot, adaptery i cron nietknięte.
+
+Sprawdzono:
+
+- `daily`: wyłącznie aktywne oferty, dokładnie jedno wywołanie deliver, podsumowanie,
+  ponowne uruchomienie z cooldown=0 bez drugiego alertu ani ponownej wysyłki;
+  stały fingerprint/state/attempts/sent_at. Każdy udany syntetyczny odczyt dodaje
+  odrębną obserwację, wstrzymana oferta nie dostaje kontroli.
+- Preflight daily: brak lub niepoprawny webhook przerywa przed odczytem i zmianą
+  tabel domenowych. Pusta baza nadal dostaje jeden pusty przebieg deliver.
+- Błąd 403 jednej oferty nie blokuje pozostałych ani obsługi kolejki. Błąd wysyłki
+  pozostawia pending z attempts=1 i retry, bez ponowienia w tym uruchomieniu.
+- `watchlist`: nazwa, domena, ostatnia udana cena, cel, dostępność, typ reguły,
+  ostatni sukces i różnica dodatnia/ujemna. Brak odczytu/celu daje null. Po błędzie
+  stara cena zostaje z datą i błędnym statusem; pauza jest jawna. Stare reguły
+  bez typu zachowują domyślny typ. Widok nie zmienia tabel.
+- Skrócony `report`: pusta baza, liczba aktywnych produktów/ofert, kolejność celów,
+  wykluczenie ofert wstrzymanych z celów, ostatnie alerty, błąd adaptera, daty
+  i brak modyfikacji tabel. To zestawienie bieżącej bazy, bez nowych analiz cenowych.
+- CLI: JSON podsumowania daily i kody 0/1 dla sukcesu/błędu odczytu; watchlist;
+  `report` bez argumentu; nadal działające raporty daily/weekly. `report --notify`
+  bez okresu jest odrzucany, aby skrócony raport nie wysyłał wiadomości niejawnie.
+
+Nowe ścieżki komend **nie były uruchamiane produkcyjnie**. Wyniki rzeczywistego alertu
+poniżej dotyczą wcześniejszego cyklu check/deliver, a nie komendy daily.
+
 Środowisko: Windows, PowerShell, Python 3.12.10, lokalna `.venv`, 25 października 2026.
 Zainstalowano projekt przez `python -m pip install -e ".[dev,discord]"`.
 Nie użyto sekretów Discord ani GitHub w testach jednostkowych.

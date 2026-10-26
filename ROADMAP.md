@@ -11,6 +11,9 @@
 - Jawne typy reguł `price_below` (tylko cena) i domyślny `available_and_price_below`.
   Walidacja progu/kombinacji, zachowane stare fingerprinty; CLI i opcje slash.
   Lokalnie sprawdzono rzeczywistą dostawę price_below: jedna wysyłka, kolejny deliver zero.
+- Codzienne CLI: `daily` (aktywne oferty + jeden deliver), `watchlist`, krótki `report`
+  bez okresu. Nowe ścieżki sprawdzone offline, bez nowych odczytów sklepów i wysyłek.
+  Istniejące raporty daily/weekly zachowane; `daily` wymaga webhooka przed odczytami.
 - Osobny opcjonalny bot z komendami slash i autoryzacją właściciela/serwera.
 - Blokada procesu, snapshot/restore, konfiguracja CI i ręczny workflow publicznego monitoringu,
   wyłącznie workflow_dispatch; brak cron. Discord w workflow domyślnie wyłączony.

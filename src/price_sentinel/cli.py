@@ -9,6 +9,7 @@ from .config import Settings
 from .diagnostics import StoreVerifier
 from .history import chart, compare, export_data, history, report
 from .models import Subscription, money
+from .routine import brief_report, daily, watchlist
 from .service import Monitor
 from .storage import Database, process_lock, save_snapshot
 from .transport import ReadError
@@ -67,10 +68,10 @@ def parser():
     cmd.add_argument("--confirm-identical", action="store_true", required=True)
     cmd = sub.add_parser("compare")
     cmd.add_argument("product_id", type=int)
-    for name in ("list", "status", "deliver", "bot", "test-webhook"):
+    for name in ("list", "status", "deliver", "bot", "test-webhook", "daily", "watchlist"):
         sub.add_parser(name)
     cmd = sub.add_parser("report")
-    cmd.add_argument("period", choices=("daily", "weekly"))
+    cmd.add_argument("period", choices=("daily", "weekly"), nargs="?")
     cmd.add_argument("--notify", action="store_true")
     cmd = sub.add_parser("export")
     cmd.add_argument("output", type=Path)
@@ -91,6 +92,10 @@ def execute(args, db, settings):
         return StoreVerifier(db, settings).verify(args.url, args.output)
     service = Monitor(db, settings)
     command = args.command
+    if command == "daily":
+        return daily(service, settings.webhook)
+    if command == "watchlist":
+        return {"waluta": "PLN", "strefa_czasowa": "Europe/Warsaw", "oferty": watchlist(db)}
     if command in ("add", "edit"):
         rule = Subscription(
             rule_type=args.rule_type,
@@ -136,6 +141,10 @@ def execute(args, db, settings):
     elif command == "export":
         export_data(db, args.output, args.format)
     elif command == "report":
+        if args.period is None:
+            if args.notify:
+                raise ValueError("report --notify wymaga okresu daily albo weekly")
+            return brief_report(service)
         if args.notify and not settings.webhook:
             raise ValueError("--notify wymaga DISCORD_WEBHOOK_URL")
         return report(db, args.period, webhook=settings.webhook if args.notify else None)

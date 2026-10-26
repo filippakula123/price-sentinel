@@ -22,6 +22,78 @@ sprawdzono też prawdziwy alert `price_below`: cena 3399 zł, próg 10 000 zł, 
 nieznana; pierwszy `deliver` wysłał 1 wiadomość, drugi 0. Regułę testową usunięto.
 Szczegóły i granice weryfikacji: [TESTING.md](docs/TESTING.md).
 
+## Codzienne użycie — PowerShell
+
+Uruchamiaj polecenia z katalogu repozytorium. Wybierz jedną właściwą bazę i używaj jej
+konsekwentnie; poniżej jest domyślna lokalna baza, nie baza prób produkcyjnych.
+Nie uruchamiaj równolegle bota ani innej kopii monitora.
+
+```powershell
+$py = ".\.venv\Scripts\python.exe"
+$db = "data/sentinel.sqlite3"
+# Dodaj ofertę tylko raz. Zapisz id zwrócone przez add.
+& $py -m price_sentinel --db $db add "https://www.x-kom.pl/p/1195326-konsola-playstation-sony-playstation-5-slim.html" --rule-type price_below --target "3000"
+# Dla istniejącej oferty zastąp 1 jej rzeczywistym id; edit zastępuje całą regułę.
+& $py -m price_sentinel --db $db edit 1 --rule-type price_below --target "2900"
+& $py -m price_sentinel --db $db watchlist
+```
+
+`price_below` nie wymaga potwierdzonej dostępności. Domyślny
+`available_and_price_below` nadal jej wymaga. Nie ustawiaj wysokiego progu testowego
+w codziennej watchliście, jeśli nie chcesz otrzymać alertu przy najbliższym odczycie.
+
+Przed `daily` ustaw `DISCORD_WEBHOOK_URL` w środowisku procesu. Aplikacja nie ładuje
+`.env` automatycznie. Jeśli trzymasz webhook w ignorowanym `.env`, zapisz go jako
+jedną linię przypisania `DISCORD_WEBHOOK_URL` (bez komentarza na końcu wartości).
+Poniższy fragment wczytuje tylko tę wartość, nie wykonuje zawartości pliku i jej nie wypisuje:
+
+```powershell
+$webhookLines = @(Get-Content -LiteralPath ".env" | Where-Object { $_ -match '^\s*DISCORD_WEBHOOK_URL\s*=' })
+if ($webhookLines.Count -ne 1) { throw "W .env musi być dokładnie jedno przypisanie DISCORD_WEBHOOK_URL" }
+$env:DISCORD_WEBHOOK_URL = ($webhookLines[0] -split '=', 2)[1].Trim().Trim('"').Trim("'")
+Remove-Variable webhookLines
+& $py -m price_sentinel --db $db daily
+# Sprawdź od razu kod zakończenia daily:
+$LASTEXITCODE
+& $py -m price_sentinel --db $db watchlist
+& $py -m price_sentinel --db $db report
+& $py -m price_sentinel --db $db status
+# Po zakończeniu sesji:
+Remove-Item Env:DISCORD_WEBHOOK_URL -ErrorAction SilentlyContinue
+```
+
+`daily` sprawdza po kolei wszystkie aktywne oferty, tworzy alerty przez istniejące
+reguły i **raz** wywołuje `deliver`. Podsumowanie JSON podaje liczbę sprawdzonych ofert,
+sukcesów/błędów odczytu, nowych i wysłanych alertów oraz całej oczekującej kolejki.
+Brak lub niepoprawny webhook daje kod 2 **przed odczytami sklepów**. Do kontroli bez
+wysyłki służy dotychczasowe `check`. Kod 1 oznacza błąd przynajmniej jednego odczytu
+lub wysyłki; inne oferty nadal są sprawdzane, a kolejka obsługiwana. Kod 0 oznacza
+brak błędów w tym uruchomieniu; zaległe retry mogą nadal oczekiwać na swój termin.
+
+Jedna obsługa kolejki oznacza obecny limit 20 gotowych alertów, także zaległych;
+to nie jest limit jednej wiadomości. Pauza pomija odczyt oferty, lecz nie anuluje
+wcześniej utworzonego alertu. `daily` nie wysyła raportów i nie ponawia błędnej
+wysyłki w tym samym uruchomieniu. Kolejne uruchomienie respektuje fingerprint,
+cooldown i termin retry; nie tworzy kolejnego alertu dla niezmienionego stanu/reguły.
+Awaria po przyjęciu wiadomości przez Discord, przed zapisem `sent`, nadal może dać duplikat.
+
+`watchlist` pokazuje wszystkie oferty, także wstrzymane: nazwę, domenę sklepu, cenę,
+cel, dostępność, typ reguły, datę ostatniego sukcesu i różnicę **cena − cel** w groszach.
+Dodatnia różnica oznacza cenę powyżej celu, ujemna poniżej. `null` oznacza brak danych,
+nie zero. Cena i dostępność pochodzą z ostatniej udanej obserwacji; `czas_ceny`
+i `status_odczytu` ujawniają stary odczyt po błędzie. Czasy prezentowane są w Europe/Warsaw.
+
+`report` bez okresu to krótkie lokalne podsumowanie: aktywne produkty/oferty, do 5 celów
+o najmniejszej bezwzględnej różnicy ceny, do 5 ostatnich alertów, ostatnie zapisane błędy
+adapterów (także historyczne) i ostatni sukces monitoringu. Oferty bez ceny lub celu
+nie trafiają do listy najbliższych celów. Raport nie odczytuje sklepów i niczego nie wysyła.
+Istniejące `report daily`, `report weekly` i ich `--notify` zachowują dotychczasowe działanie;
+`report --notify` bez okresu jest błędem. `status` pozostaje szczegółową diagnostyką.
+
+Nowe komendy zweryfikowano **offline**, syntetycznym HTML i atrapami Discord;
+nie wykonano dodatkowego rzeczywistego check/daily ani wysyłki. Cron jest wyłączony,
+adaptery i publiczny snapshot nie zostały zmienione.
+
 ## Pierwsze uruchomienie — Windows / PowerShell lub CMD
 
 Zainstaluj Python 3.12. Jeśli masz launcher `py`, możesz zastąpić `python` przez `py -3.12`.
